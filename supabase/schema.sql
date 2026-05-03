@@ -25,6 +25,7 @@ create table if not exists public.asset_allocations (
   asset_key text not null,
   asset_label text not null,
   current_value numeric(12, 2) not null default 0,
+  owed_debt numeric(12, 2) not null default 0,
   target_percent numeric(5, 2) not null default 0 check (target_percent >= 0 and target_percent <= 100),
   focus_rank integer check (focus_rank between 1 and 3),
   account_type text not null default 'taxable',
