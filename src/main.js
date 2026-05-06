@@ -31,6 +31,24 @@ const defaultBudget = {
   timeline_years: 12
 };
 
+const defaultCashflowInputs = {
+  income: [
+    { key: 'primary_income', label: 'Primary income', amount: 9200 },
+    { key: 'side_income', label: 'Side income', amount: 0 },
+    { key: 'other_income', label: 'Other income', amount: 0 }
+  ],
+  fixed: [
+    { key: 'housing', label: 'Housing', amount: 2600 },
+    { key: 'utilities', label: 'Utilities', amount: 450 },
+    { key: 'insurance', label: 'Insurance', amount: 600 }
+  ],
+  variable: [
+    { key: 'food', label: 'Food', amount: 700 },
+    { key: 'transportation', label: 'Transportation', amount: 400 },
+    { key: 'lifestyle', label: 'Lifestyle', amount: 500 }
+  ]
+};
+
 const defaultAllocations = assetClasses.map((asset, index) => ({
   asset_key: asset.key,
   asset_label: asset.label,
@@ -66,6 +84,48 @@ const fallbackNews = [
     url: 'https://wolfstreet.com/2026/05/03/the-us-government-sold-723-billion-of-treasury-securities-this-week-inflation-jumped-and-met-t-bill-yields/',
     published_at: '2026-05-03',
     summary: 'Short-term Treasury supply and yield changes matter for investors comparing bills, CDs, and high-yield savings.'
+  },
+  {
+    title: 'Emergency fund planning starts with matching cash to real expenses',
+    source: 'Investopedia',
+    url: 'https://www.investopedia.com/terms/e/emergency_fund.asp',
+    published_at: '2026-05-04',
+    summary: 'Emergency savings targets work best when monthly expenses, debt, and liquidity needs are reviewed together.'
+  },
+  {
+    title: 'Treasury bills remain a flexible short-term cash tool',
+    source: 'TreasuryDirect',
+    url: 'https://www.treasurydirect.gov/marketable-securities/treasury-bills/',
+    published_at: '2026-05-05',
+    summary: 'T-bills can support short-term cash planning when investors compare yield, maturity, and liquidity.'
+  },
+  {
+    title: 'High-yield savings accounts remain a core cash option',
+    source: 'NerdWallet',
+    url: 'https://www.nerdwallet.com/best/banking/high-yield-online-savings-accounts',
+    published_at: '2026-05-06',
+    summary: 'High-yield savings accounts can keep emergency cash liquid while earning more than many traditional accounts.'
+  },
+  {
+    title: 'Debt payoff strategy can free up investing cash flow',
+    source: 'Bankrate',
+    url: 'https://www.bankrate.com/personal-finance/debt/how-to-pay-off-debt/',
+    published_at: '2026-05-07',
+    summary: 'A clear payoff order helps households reduce interest drag before scaling new investing dollars.'
+  },
+  {
+    title: 'Asset allocation connects risk profile with long-term targets',
+    source: 'Fidelity',
+    url: 'https://www.fidelity.com/learning-center/investment-products/mutual-funds/asset-allocation-mutual-funds',
+    published_at: '2026-05-08',
+    summary: 'Allocation targets can help balance stocks, cash, real estate, and retirement accounts over time.'
+  },
+  {
+    title: 'CDs can compete with savings accounts for planned cash',
+    source: 'CBS News',
+    url: 'https://www.cbsnews.com/news/cd-vs-high-yield-savings-account-which-is-better-now/',
+    published_at: '2026-05-09',
+    summary: 'CDs may offer rate certainty, but emergency money usually benefits from fast access and liquidity.'
   }
 ];
 
@@ -73,6 +133,7 @@ const state = {
   budget: structuredClone(defaultBudget),
   allocations: structuredClone(defaultAllocations),
   news: fallbackNews,
+  cashflowInputs: structuredClone(defaultCashflowInputs),
   profileId: null,
   status: isSupabaseConfigured ? 'Supabase ready' : 'Local draft mode',
   saving: false,
@@ -115,6 +176,60 @@ function numberValue(value) {
 
 function editableValue(value) {
   return value ?? '';
+}
+
+function makeCashflowKey(type) {
+  return `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function totalCashflowItems(group) {
+  return group.reduce((sum, item) => sum + numberValue(item.amount), 0);
+}
+
+function updateBudgetFromCashflowInputs() {
+  state.budget.monthly_income = totalCashflowItems(state.cashflowInputs.income);
+  state.budget.fixed_expenses = totalCashflowItems(state.cashflowInputs.fixed);
+  state.budget.variable_expenses = totalCashflowItems(state.cashflowInputs.variable);
+}
+
+function ensureCashflowInputs() {
+  if (state.cashflowInputs?.income?.length && state.cashflowInputs?.fixed?.length && state.cashflowInputs?.variable?.length) return;
+
+  state.cashflowInputs = cashflowInputsFromBudget(state.budget);
+}
+
+function normalizeCashflowInputs(inputs) {
+  return {
+    income: (inputs?.income?.length ? inputs.income : defaultCashflowInputs.income).map((item, index) => ({
+      key: item.key || `income_${index}`,
+      label: item.label || `Income ${index + 1}`,
+      amount: editableValue(item.amount)
+    })),
+    fixed: (inputs?.fixed?.length ? inputs.fixed : defaultCashflowInputs.fixed).map((item, index) => ({
+      key: item.key || `fixed_${index}`,
+      label: item.label || `Fixed expense ${index + 1}`,
+      amount: editableValue(item.amount)
+    })),
+    variable: (inputs?.variable?.length ? inputs.variable : defaultCashflowInputs.variable).map((item, index) => ({
+      key: item.key || `variable_${index}`,
+      label: item.label || `Variable expense ${index + 1}`,
+      amount: editableValue(item.amount)
+    }))
+  };
+}
+
+function cashflowInputsFromBudget(budget) {
+  const inputs = structuredClone(defaultCashflowInputs);
+  inputs.income[0].amount = budget.monthly_income;
+  inputs.income[1].amount = 0;
+  inputs.income[2].amount = 0;
+  inputs.fixed[0].amount = budget.fixed_expenses;
+  inputs.fixed[1].amount = 0;
+  inputs.fixed[2].amount = 0;
+  inputs.variable[0].amount = budget.variable_expenses;
+  inputs.variable[1].amount = 0;
+  inputs.variable[2].amount = 0;
+  return inputs;
 }
 
 function activeAllocations() {
@@ -195,7 +310,89 @@ function readinessItem(label, passed, detail) {
   `;
 }
 
+function cashflowInputGroup(title, type, items) {
+  return `
+    <div class="cashflow-group">
+      <div class="cashflow-group-title">
+        <h3>${title}</h3>
+      </div>
+      ${items.map((item) => `
+        <div class="cashflow-entry">
+          <label>
+            <span>Name</span>
+            <input data-cashflow-name="${type}" data-key="${item.key}" type="text" value="${editableValue(item.label)}">
+          </label>
+          <label>
+            <span>Amount</span>
+            <input data-cashflow="${type}" data-key="${item.key}" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.amount)}">
+          </label>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function expenseInputGroup() {
+  const expenses = [
+    ...state.cashflowInputs.fixed.map((item) => ({ ...item, type: 'fixed' })),
+    ...state.cashflowInputs.variable.map((item) => ({ ...item, type: 'variable' }))
+  ];
+  const columns = [expenses.slice(0, 20), expenses.slice(20, 40)];
+
+  return `
+    <div class="cashflow-group expense-group">
+      <div class="cashflow-group-title">
+        <h3>Expenses</h3>
+      </div>
+      <div class="expense-columns">
+        ${columns.map((column) => `
+          <div class="expense-column">
+            ${column.map((item) => `
+              <div class="expense-entry">
+                <label>
+                  <span>Name</span>
+                  <input class="expense-name-input" aria-label="Expense name" data-cashflow-name="${item.type}" data-key="${item.key}" type="text" placeholder="Expense name" value="${editableValue(item.label)}">
+                </label>
+                <label>
+                  <span>Amount</span>
+                  <input class="expense-amount-input" aria-label="Expense amount" data-cashflow="${item.type}" data-key="${item.key}" type="number" min="0" max="99999999" step="any" inputmode="decimal" placeholder="Amount" value="${editableValue(item.amount)}">
+                </label>
+                <label class="expense-check">
+                  <span class="sr-only">Select expense</span>
+                  <input type="checkbox" data-expense-select data-type="${item.type}" data-key="${item.key}">
+                </label>
+              </div>
+            `).join('')}
+          </div>
+        `).join('')}
+      </div>
+      <div class="expense-actions">
+        <button class="cashflow-add-btn expense-add-btn" type="button" data-action="add-cashflow" data-type="variable">Add</button>
+        <button class="expense-remove-btn" type="button" data-action="remove-selected-expenses">Remove</button>
+      </div>
+    </div>
+  `;
+}
+
+function getDailyNewsItems(items) {
+  if (items.length <= 3) return items.slice(0, 3);
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % items.length;
+  return [0, 1, 2].map((offset) => items[(dayIndex + offset) % items.length]);
+}
+
+function mergeNewsItems(primary, fallback) {
+  const seen = new Set();
+  return [...primary, ...fallback].filter((item) => {
+    if (!item?.url || seen.has(item.url)) return false;
+    seen.add(item.url);
+    return true;
+  });
+}
+
 function render() {
+  ensureCashflowInputs();
+  updateBudgetFromCashflowInputs();
   const plan = calculatePlan();
   const activeAssets = activeAllocations();
   const focus = state.allocations
@@ -208,16 +405,13 @@ function render() {
   const cashflowPercent = Math.max(0, Math.min(100, (plan.cashflow / Math.max(plan.income, 1)) * 100));
   const emergencyPercent = Math.max(0, Math.min(100, (plan.emergencyMonths / 12) * 100));
   const debtPercent = Math.max(0, Math.min(100, 100 - (plan.debt / Math.max(plan.income * 2, 1)) * 100));
+  const dailyNews = getDailyNewsItems(state.news);
 
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <span class="brand-mark">W</span>
-          <div>
-            <strong>WealthBuilder</strong>
-            <small>Command Center</small>
-          </div>
+          <a class="brand-mark" href="#" aria-label="Back to top"><span>$</span></a>
         </div>
         <nav>
           <a href="#budget">Budget</a>
@@ -228,12 +422,12 @@ function render() {
       </aside>
 
       <main>
-        <header class="hero">
-          <div>
-            <h1>Wealth Tracker</h1>
-            <p>All-In-One Wealth Building App</p>
-          </div>
-        </header>
+          <header class="hero">
+            <div class="hero-content">
+              <h1>Wealth Tracker</h1>
+              <h2>Online Personal Finance</h2>
+            </div>
+          </header>
 
         <section class="metric-grid" aria-label="Plan metrics">
           <article class="metric-card featured">
@@ -259,14 +453,21 @@ function render() {
         </section>
 
         <section class="workbench">
+          <section class="panel cashflow-panel">
+            <div class="section-title">
+              <strong>Income And Expenses</strong>
+            </div>
+            ${cashflowInputGroup('Income', 'income', state.cashflowInputs.income)}
+            ${expenseInputGroup()}
+          </section>
+
           <form id="budget" class="panel budget-form">
             <div class="section-title">
               <strong>Budget Calculator</strong>
             </div>
             ${field('Plan name', 'name', 'text')}
             ${field('Monthly income', 'monthly_income')}
-            ${field('Fixed expenses', 'fixed_expenses')}
-            ${field('Variable expenses', 'variable_expenses')}
+            ${monthlyExpensesField(plan.expenses)}
             ${field('Debt balance', 'debt_balance')}
             ${field('Debt APR', 'debt_apr')}
             ${field('Emergency Fund', 'emergency_current')}
@@ -281,6 +482,24 @@ function render() {
             </label>
             ${field('Timeline years', 'timeline_years')}
           </form>
+        </section>
+
+        <section id="assets" class="portfolio-grid">
+          <article class="panel chart-panel">
+            <div class="section-title">
+              <strong>Allocation map</strong>
+            </div>
+            <div class="donut" style="background: conic-gradient(${allocationSegments(plan.portfolioTotal) || '#dbe5eb 0 100%'})">
+              <div><strong>${money(plan.portfolioTotal)}</strong><span>Total</span></div>
+            </div>
+            <div class="legend">
+              ${topAssets.map((item) => {
+                const asset = assetClasses.find((entry) => entry.key === item.asset_key);
+                const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
+                return `<div><i style="background:${asset?.color || '#7aa6b8'}"></i><span>${item.asset_label}</span><strong>${pct(percent)}</strong></div>`;
+              }).join('')}
+            </div>
+          </article>
 
           <section id="readiness" class="panel readiness-panel">
             <div class="section-title">
@@ -315,36 +534,15 @@ function render() {
           </section>
         </section>
 
-        <section id="assets" class="portfolio-grid">
-          <article class="panel chart-panel">
-            <div class="section-title">
-              <strong>Allocation map</strong>
-            </div>
-            <div class="donut" style="background: conic-gradient(${allocationSegments(plan.portfolioTotal) || '#dbe5eb 0 100%'})">
-              <div><strong>${money(plan.portfolioTotal)}</strong><span>Total</span></div>
-            </div>
-            <div class="legend">
-              ${topAssets.map((item) => {
-                const asset = assetClasses.find((entry) => entry.key === item.asset_key);
-                const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
-                return `<div><i style="background:${asset?.color || '#7aa6b8'}"></i><span>${item.asset_label}</span><strong>${pct(percent)}</strong></div>`;
-              }).join('')}
-            </div>
-          </article>
-
-          <article class="panel focus-panel">
-            <div class="section-title">
-              <strong>${plan.investReady ? 'My Top Performing Assets' : 'Locked until ready'}</strong>
-            </div>
-            <div class="focus-list">
-              ${focus.map((item) => `<div><span>${item.focus_rank}</span><strong>${item.asset_label}</strong><small>${money(netAssetValue(item))} net</small></div>`).join('')}
-            </div>
-          </article>
-        </section>
-
         <section class="panel asset-editor">
           <div class="section-title asset-editor-title">
             <strong>Asset Classes</strong>
+          </div>
+          <div class="asset-summary">
+            <h3>My Top Performing Assets</h3>
+            <div class="focus-list">
+              ${focus.map((item) => `<div><span>${item.focus_rank}</span><strong>${item.asset_label}</strong><small>${money(netAssetValue(item))} net</small></div>`).join('')}
+            </div>
           </div>
           <div class="asset-table">
             ${state.visibleAssetKeys.map((assetKey, index) => {
@@ -376,7 +574,7 @@ function render() {
             <span class="news-title">Wealth Builder News</span>
           </div>
           <div class="news-list">
-            ${state.news.slice(0, 3).map((item) => `
+            ${dailyNews.map((item) => `
               <a href="${item.url}" rel="noreferrer" title="Read article: ${item.title}">
                 <span>${item.source} · ${formatDate(item.published_at)}</span>
                 <strong>${item.title}</strong>
@@ -406,6 +604,15 @@ function field(label, name, type = 'number') {
   `;
 }
 
+function monthlyExpensesField(value) {
+  return `
+    <label>
+      <span>Monthly expenses</span>
+      <input type="number" min="0" step="any" inputmode="decimal" value="${editableValue(value)}" readonly aria-readonly="true">
+    </label>
+  `;
+}
+
 function bindEvents() {
   document.querySelectorAll('#budget input, #budget select').forEach((input) => {
     input.addEventListener('input', (event) => {
@@ -415,6 +622,101 @@ function bindEvents() {
       scheduleSave();
     });
     input.addEventListener('change', render);
+  });
+
+  document.querySelectorAll('[data-cashflow]').forEach((input) => {
+    input.addEventListener('input', (event) => {
+      const { cashflow, key } = event.target.dataset;
+      const item = state.cashflowInputs[cashflow]?.find((entry) => entry.key === key);
+      if (!item) return;
+
+      item.amount = event.target.value;
+      updateBudgetFromCashflowInputs();
+      persistLocal();
+    });
+    input.addEventListener('change', () => {
+      scheduleSave();
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-cashflow-name]').forEach((input) => {
+    input.addEventListener('input', (event) => {
+      const { cashflowName, key } = event.target.dataset;
+      const item = state.cashflowInputs[cashflowName]?.find((entry) => entry.key === key);
+      if (!item) return;
+
+      item.label = event.target.value;
+      persistLocal();
+    });
+    input.addEventListener('change', () => {
+      scheduleSave();
+    });
+  });
+
+  document.querySelectorAll('[data-cashflow-action]').forEach((select) => {
+    select.addEventListener('change', (event) => {
+      const { cashflowAction, key } = event.target.dataset;
+      if (event.target.value === 'rename') {
+        const nameInput = document.querySelector(`[data-cashflow-name="${cashflowAction}"][data-key="${key}"]`);
+        nameInput?.focus();
+        nameInput?.select();
+        event.target.value = '';
+        return;
+      }
+
+      if (event.target.value !== 'remove') return;
+
+      state.cashflowInputs[cashflowAction] = state.cashflowInputs[cashflowAction].filter((item) => item.key !== key);
+      updateBudgetFromCashflowInputs();
+      persistLocal();
+      scheduleSave();
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-action="remove-cashflow"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const { type, key } = event.target.dataset;
+      state.cashflowInputs[type] = state.cashflowInputs[type].filter((item) => item.key !== key);
+      updateBudgetFromCashflowInputs();
+      persistLocal();
+      scheduleSave();
+      render();
+    });
+  });
+
+  document.querySelector('[data-action="remove-selected-expenses"]')?.addEventListener('click', () => {
+    const selected = [...document.querySelectorAll('[data-expense-select]:checked')].map((input) => ({
+      type: input.dataset.type,
+      key: input.dataset.key
+    }));
+    if (!selected.length) return;
+
+    selected.forEach(({ type, key }) => {
+      state.cashflowInputs[type] = state.cashflowInputs[type].filter((item) => item.key !== key);
+    });
+    updateBudgetFromCashflowInputs();
+    persistLocal();
+    scheduleSave();
+    render();
+  });
+
+  document.querySelectorAll('[data-action="add-cashflow"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const { type } = event.target.dataset;
+      const group = state.cashflowInputs[type];
+      if (!group) return;
+
+      group.push({
+        key: makeCashflowKey(type),
+        label: type === 'fixed' ? 'New fixed expense' : 'New variable expense',
+        amount: ''
+      });
+      persistLocal();
+      scheduleSave();
+      render();
+    });
   });
 
   document.querySelectorAll('[data-focus-slot]').forEach((select) => {
@@ -513,10 +815,15 @@ function syncVisibleAssets() {
   });
 }
 
+function isEditingFormInput() {
+  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name]'));
+}
+
 function persistLocal() {
   localStorage.setItem('wealthbuilder-plan', JSON.stringify({
     budget: state.budget,
     allocations: state.allocations,
+    cashflowInputs: state.cashflowInputs,
     profileId: state.profileId,
     visibleAssetKeys: state.visibleAssetKeys
   }));
@@ -529,6 +836,7 @@ function loadLocal() {
   try {
     const parsed = JSON.parse(saved);
     state.budget = { ...state.budget, ...parsed.budget };
+    state.cashflowInputs = normalizeCashflowInputs(parsed.cashflowInputs || cashflowInputsFromBudget(state.budget));
     state.allocations = state.allocations.map((item) => ({
       ...item,
       ...(parsed.allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
@@ -583,9 +891,9 @@ async function loadSupabaseData() {
     .from('news_items')
     .select('title, source, url, published_at, summary')
     .order('published_at', { ascending: false })
-    .limit(3);
+    .limit(12);
 
-  if (news?.length) state.news = news;
+  if (news?.length) state.news = mergeNewsItems(news, fallbackNews);
   render();
 }
 
@@ -594,12 +902,12 @@ async function savePlan() {
 
   if (!supabase) {
     state.status = 'Saved locally';
-    render();
+    if (!isEditingFormInput()) render();
     return;
   }
 
   state.saving = true;
-  render();
+  if (!isEditingFormInput()) render();
 
   const sessionId = getSessionId();
   const payload = {
@@ -617,7 +925,7 @@ async function savePlan() {
   if (error) {
     state.status = 'Supabase save failed';
     state.saving = false;
-    render();
+    if (!isEditingFormInput()) render();
     return;
   }
 
@@ -655,7 +963,7 @@ async function savePlan() {
 
   state.saving = false;
   persistLocal();
-  render();
+  if (!isEditingFormInput()) render();
 }
 
 loadLocal();
