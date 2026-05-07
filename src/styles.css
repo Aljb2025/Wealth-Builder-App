@@ -20,6 +20,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 74px;
 }
 
 body {
@@ -77,21 +78,26 @@ a {
 
 .brand-mark {
   display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  border-radius: 0;
+  background: transparent;
+  color: #0f222c;
+  overflow: hidden;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.brand-mark img {
+  display: block;
   width: 42px;
   height: 42px;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--mint);
-  color: #0f222c;
-  font-size: 24px;
-  font-weight: 900;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  object-fit: contain;
 }
 
 .brand-mark:hover,
 .brand-mark:focus-visible {
   transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(88, 191, 163, 0.28);
 }
 
 .brand strong,
@@ -270,12 +276,69 @@ h1 {
   display: grid;
   grid-template-columns: minmax(340px, 0.9fr) minmax(420px, 1.1fr);
   align-items: start;
-  gap: 18px;
+  column-gap: 18px;
+  row-gap: 12px;
   margin-top: 18px;
+}
+
+.anchored-section,
+#news {
+  min-height: calc(100vh - 100px);
+  scroll-margin-top: 0;
+}
+
+#readiness {
+  scroll-margin-top: 0;
+}
+
+#assets {
+  scroll-margin-top: -14px;
 }
 
 .workbench {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.budget-column {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.guidance-card {
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fbfc, #edf7f4);
+}
+
+.guidance-card > span,
+.debt-snapshot-grid span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.guidance-card > strong {
+  color: var(--steel);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.guidance-card h3,
+.guidance-card p {
+  margin: 0;
+}
+
+.guidance-card h3 {
+  font-size: 18px;
+}
+
+.guidance-card p {
+  max-width: 760px;
+  color: var(--muted);
 }
 
 .panel {
@@ -587,6 +650,31 @@ select:focus {
   grid-template-columns: minmax(380px, 0.95fr) minmax(420px, 1.05fr);
 }
 
+.readiness-left-stack {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.debt-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.debt-snapshot-grid div {
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+.debt-snapshot-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+}
+
 .chart-panel {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -894,9 +982,14 @@ footer {
   .cashflow-group,
   .expense-columns,
   .split-plan,
+  .debt-snapshot-grid,
   .focus-list,
   .news-list {
     grid-template-columns: 1fr;
+  }
+
+  .guidance-panel {
+    min-height: auto;
   }
 
   .expense-entry {

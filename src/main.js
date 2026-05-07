@@ -310,6 +310,43 @@ function readinessItem(label, passed, detail) {
   `;
 }
 
+function nextBestMove(plan) {
+  if (!plan.readiness.cashflow) {
+    return {
+      title: 'Increase monthly cashflow',
+      detail: 'Reduce expenses or add income until money is left after expenses and fun fund.',
+      metric: money(Math.abs(plan.cashflow)),
+      label: 'gap to cover'
+    };
+  }
+
+  if (!plan.readiness.debt) {
+    return {
+      title: 'Pay debt below $5,000',
+      detail: 'Route extra cash toward debt first so future dollars can move into savings and investments faster.',
+      metric: money(Math.max(plan.debt - 5000, 0)),
+      label: 'above threshold'
+    };
+  }
+
+  if (!plan.readiness.emergency) {
+    const target = plan.monthlyNeed * 3;
+    return {
+      title: 'Build the 3-month emergency fund',
+      detail: 'Keep cash liquid while building the base emergency fund before prioritizing new investing dollars.',
+      metric: money(Math.max(target - numberValue(state.budget.emergency_current), 0)),
+      label: 'needed for 3 months'
+    };
+  }
+
+  return {
+    title: 'Invest toward your selected assets',
+    detail: 'The core readiness checks are passing, so new dollars can focus on the asset classes you picked.',
+    metric: money(plan.investContribution),
+    label: 'monthly investing'
+  };
+}
+
 function cashflowInputGroup(title, type, items) {
   return `
     <div class="cashflow-group">
@@ -406,15 +443,20 @@ function render() {
   const emergencyPercent = Math.max(0, Math.min(100, (plan.emergencyMonths / 12) * 100));
   const debtPercent = Math.max(0, Math.min(100, 100 - (plan.debt / Math.max(plan.income * 2, 1)) * 100));
   const dailyNews = getDailyNewsItems(state.news);
+  const move = nextBestMove(plan);
+  const debtSnapshotPayment = Math.max(plan.debtContribution || Math.min(Math.max(plan.cashflow, 0), plan.debt), 0);
+  const debtSnapshotMonths = debtSnapshotPayment > 0 && plan.debt > 0 ? Math.ceil(plan.debt / debtSnapshotPayment) : 0;
 
   app.innerHTML = `
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <a class="brand-mark" href="#" aria-label="Back to top"><span>$</span></a>
+          <a class="brand-mark" href="#" aria-label="Back to top">
+            <img src="/assets/dollar_sign_crown_logo.png" alt="Wealth Tracker logo">
+          </a>
         </div>
         <nav>
-          <a href="#budget">Budget</a>
+          <a href="#budget-section">Budget</a>
           <a href="#readiness">Readiness</a>
           <a href="#assets">Assets</a>
           <a href="#news">Research</a>
@@ -452,7 +494,7 @@ function render() {
           </article>
         </section>
 
-        <section class="workbench">
+        <section id="budget-section" class="workbench anchored-section">
           <section class="panel cashflow-panel">
             <div class="section-title">
               <strong>Income And Expenses</strong>
@@ -461,46 +503,84 @@ function render() {
             ${expenseInputGroup()}
           </section>
 
-          <form id="budget" class="panel budget-form">
-            <div class="section-title">
-              <strong>Budget Calculator</strong>
-            </div>
-            ${field('Plan name', 'name', 'text')}
-            ${field('Monthly income', 'monthly_income')}
-            ${monthlyExpensesField(plan.expenses)}
-            ${field('Debt balance', 'debt_balance')}
-            ${field('Debt APR', 'debt_apr')}
-            ${field('Emergency Fund', 'emergency_current')}
-            ${field('Monthly Fun Fund', 'emergency_monthly_need')}
-            ${field('Emergency Fund Savings Account APY', 'emergency_apy')}
-            ${field('Monthly contribution', 'monthly_contribution')}
-            <label>
-              <span>Risk profile</span>
-              <select name="risk_profile">
-                ${['conservative', 'balanced', 'growth'].map((item) => `<option value="${item}" ${state.budget.risk_profile === item ? 'selected' : ''}>${item}</option>`).join('')}
-              </select>
-            </label>
-            ${field('Timeline years', 'timeline_years')}
-          </form>
+          <section class="budget-column">
+            <form id="budget" class="panel budget-form">
+              <div class="section-title">
+                <strong>Budget Calculator</strong>
+              </div>
+              ${field('Plan name', 'name', 'text')}
+              ${field('Monthly income', 'monthly_income')}
+              ${monthlyExpensesField(plan.expenses)}
+              ${field('Debt balance', 'debt_balance')}
+              ${field('Debt APR', 'debt_apr')}
+              ${field('Emergency Fund', 'emergency_current')}
+              ${field('Monthly Fun Fund', 'emergency_monthly_need')}
+              ${field('Emergency Fund Savings Account APY', 'emergency_apy')}
+              ${field('Monthly contribution', 'monthly_contribution')}
+              <label>
+                <span>Risk profile</span>
+                <select name="risk_profile">
+                  ${['conservative', 'balanced', 'growth'].map((item) => `<option value="${item}" ${state.budget.risk_profile === item ? 'selected' : ''}>${item}</option>`).join('')}
+                </select>
+              </label>
+              ${field('Timeline years', 'timeline_years')}
+            </form>
+            <section class="panel guidance-panel">
+              <div class="section-title">
+                <strong>Next Best Move</strong>
+              </div>
+              <div class="guidance-card">
+                <span>${move.label}</span>
+                <strong>${move.metric}</strong>
+                <h3>${move.title}</h3>
+                <p>${move.detail}</p>
+              </div>
+            </section>
+          </section>
         </section>
 
-        <section id="assets" class="portfolio-grid">
-          <article class="panel chart-panel">
-            <div class="section-title">
-              <strong>Allocation map</strong>
-            </div>
-            <div class="donut" style="background: conic-gradient(${allocationSegments(plan.portfolioTotal) || '#dbe5eb 0 100%'})">
-              <div><strong>${money(plan.portfolioTotal)}</strong><span>Total</span></div>
-            </div>
-            <div class="legend">
-              ${topAssets.map((item) => {
-                const asset = assetClasses.find((entry) => entry.key === item.asset_key);
-                const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
-                return `<div><i style="background:${asset?.color || '#7aa6b8'}"></i><span>${item.asset_label}</span><strong>${pct(percent)}</strong></div>`;
-              }).join('')}
-            </div>
-          </article>
-
+        <section class="portfolio-grid anchored-section">
+          <div class="readiness-left-stack">
+            <article class="panel chart-panel">
+              <div class="section-title">
+                <strong>Allocation map</strong>
+              </div>
+              <div class="donut" style="background: conic-gradient(${allocationSegments(plan.portfolioTotal) || '#dbe5eb 0 100%'})">
+                <div><strong>${money(plan.portfolioTotal)}</strong><span>Total</span></div>
+              </div>
+              <div class="legend">
+                ${topAssets.map((item) => {
+                  const asset = assetClasses.find((entry) => entry.key === item.asset_key);
+                  const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
+                  return `<div><i style="background:${asset?.color || '#7aa6b8'}"></i><span>${item.asset_label}</span><strong>${pct(percent)}</strong></div>`;
+                }).join('')}
+              </div>
+            </article>
+            <section class="panel debt-snapshot-panel">
+              <div class="section-title">
+                <strong>Debt Payoff Snapshot</strong>
+              </div>
+              <div class="debt-snapshot-grid">
+                <div>
+                  <span>Current debt</span>
+                  <strong>${money(plan.debt)}</strong>
+                </div>
+                <div>
+                  <span>APR</span>
+                  <strong>${pct(state.budget.debt_apr)}</strong>
+                </div>
+                <div>
+                  <span>Suggested payoff</span>
+                  <strong>${money(debtSnapshotPayment)}</strong>
+                </div>
+                <div>
+                  <span>Estimated payoff</span>
+                  <strong>${debtSnapshotMonths ? `${debtSnapshotMonths} mo` : 'Ready'}</strong>
+                </div>
+              </div>
+              <p class="note">${plan.debt > 0 ? 'Paying down debt below $5,000 unlocks more of the plan for investing.' : 'Debt is clear, so available dollars can move toward savings and investing.'}</p>
+            </section>
+          </div>
           <section id="readiness" class="panel readiness-panel">
             <div class="section-title">
               <strong>Financial Health</strong>
@@ -534,7 +614,7 @@ function render() {
           </section>
         </section>
 
-        <section class="panel asset-editor">
+        <section id="assets" class="panel asset-editor anchored-section">
           <div class="section-title asset-editor-title">
             <strong>Asset Classes</strong>
           </div>
