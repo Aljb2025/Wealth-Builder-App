@@ -145,6 +145,7 @@ const state = {
 
 const app = document.querySelector('#app');
 let saveTimer;
+let quickEntry = null;
 
 function money(value) {
   return new Intl.NumberFormat('en-US', {
@@ -347,65 +348,35 @@ function nextBestMove(plan) {
   };
 }
 
-function cashflowInputGroup(title, type, items) {
-  return `
-    <div class="cashflow-group">
-      <div class="cashflow-group-title">
-        <h3>${title}</h3>
-      </div>
-      ${items.map((item) => `
-        <div class="cashflow-entry">
-          <label>
-            <span>Name</span>
-            <input data-cashflow-name="${type}" data-key="${item.key}" type="text" value="${editableValue(item.label)}">
-          </label>
-          <label>
-            <span>Amount</span>
-            <input data-cashflow="${type}" data-key="${item.key}" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.amount)}">
-          </label>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
+function cashflowItems(type) {
+  if (type === 'income') return state.cashflowInputs.income.map((item) => ({ ...item, type: 'income' }));
 
-function expenseInputGroup() {
-  const expenses = [
+  return [
     ...state.cashflowInputs.fixed.map((item) => ({ ...item, type: 'fixed' })),
     ...state.cashflowInputs.variable.map((item) => ({ ...item, type: 'variable' }))
   ];
-  const columns = [expenses.slice(0, 20), expenses.slice(20, 40)];
+}
 
+function cashflowSummaryGroup(title, type, items, total) {
+  const singularTitle = type === 'income' ? 'Income' : 'Expense';
   return `
-    <div class="cashflow-group expense-group">
-      <div class="cashflow-group-title">
-        <h3>Expenses</h3>
+    <div class="cashflow-summary-group">
+      <div class="cashflow-summary-head">
+        <div>
+          <h3>${title}</h3>
+          <strong>${money(total)}</strong>
+        </div>
+        <button class="cashflow-add-btn" type="button" data-action="open-quick-entry" data-entry-type="${type}">
+          Add ${singularTitle}
+        </button>
       </div>
-      <div class="expense-columns">
-        ${columns.map((column) => `
-          <div class="expense-column">
-            ${column.map((item) => `
-              <div class="expense-entry">
-                <label>
-                  <span>Name</span>
-                  <input class="expense-name-input" aria-label="Expense name" data-cashflow-name="${item.type}" data-key="${item.key}" type="text" placeholder="Expense name" value="${editableValue(item.label)}">
-                </label>
-                <label>
-                  <span>Amount</span>
-                  <input class="expense-amount-input" aria-label="Expense amount" data-cashflow="${item.type}" data-key="${item.key}" type="number" min="0" max="99999999" step="any" inputmode="decimal" placeholder="Amount" value="${editableValue(item.amount)}">
-                </label>
-                <label class="expense-check">
-                  <span class="sr-only">Select expense</span>
-                  <input type="checkbox" data-expense-select data-type="${item.type}" data-key="${item.key}">
-                </label>
-              </div>
-            `).join('')}
-          </div>
-        `).join('')}
-      </div>
-      <div class="expense-actions">
-        <button class="cashflow-add-btn expense-add-btn" type="button" data-action="add-cashflow" data-type="variable">Add</button>
-        <button class="expense-remove-btn" type="button" data-action="remove-selected-expenses">Remove</button>
+      <div class="cashflow-list">
+        ${items.length ? items.map((item) => `
+          <button class="cashflow-list-item" type="button" data-action="open-quick-entry" data-entry-type="${type}" data-source-type="${item.type}" data-key="${item.key}">
+            <span>${item.label || 'Unnamed item'}</span>
+            <strong>${money(item.amount)}</strong>
+          </button>
+        `).join('') : `<p class="empty-note">No ${title.toLowerCase()} entered yet.</p>`}
       </div>
     </div>
   `;
@@ -427,6 +398,38 @@ function mergeNewsItems(primary, fallback) {
   });
 }
 
+function quickEntryOverlay() {
+  if (!quickEntry) return '';
+
+  const isIncome = quickEntry.entryType === 'income';
+  const items = cashflowItems(quickEntry.entryType);
+  const selected = items.find((item) => item.key === quickEntry.key && item.type === quickEntry.sourceType);
+  const title = `${selected ? 'Edit' : 'Add'} ${isIncome ? 'Income' : 'Expense'}`;
+
+  return `
+    <div class="quick-entry-layer" data-action="close-quick-entry">
+      <section class="quick-entry-panel" role="dialog" aria-modal="false" aria-label="${title}">
+        <div class="quick-entry-title">
+          <strong>${title}</strong>
+          <button type="button" data-action="close-quick-entry" aria-label="Close quick entry">Close</button>
+        </div>
+        <label>
+          <span>Name</span>
+          <input data-quick-name type="text" value="${editableValue(selected?.label)}" placeholder="${isIncome ? 'Income name' : 'Expense name'}">
+        </label>
+        <label>
+          <span>Amount</span>
+          <input data-quick-amount type="number" min="0" step="any" inputmode="decimal" value="${editableValue(selected?.amount)}" placeholder="Amount">
+        </label>
+        <div class="quick-entry-actions">
+          <button class="cashflow-add-btn" type="button" data-action="save-quick-entry">Add</button>
+          <button class="expense-remove-btn" type="button" data-action="remove-quick-entry" ${selected ? '' : 'disabled'}>Remove</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function render() {
   ensureCashflowInputs();
   updateBudgetFromCashflowInputs();
@@ -446,6 +449,8 @@ function render() {
   const move = nextBestMove(plan);
   const debtSnapshotPayment = Math.max(plan.debtContribution || Math.min(Math.max(plan.cashflow, 0), plan.debt), 0);
   const debtSnapshotMonths = debtSnapshotPayment > 0 && plan.debt > 0 ? Math.ceil(plan.debt / debtSnapshotPayment) : 0;
+  const incomeItems = cashflowItems('income');
+  const expenseItems = cashflowItems('expense');
 
   app.innerHTML = `
     <div class="app-shell">
@@ -499,8 +504,8 @@ function render() {
             <div class="section-title">
               <strong>Income And Expenses</strong>
             </div>
-            ${cashflowInputGroup('Income', 'income', state.cashflowInputs.income)}
-            ${expenseInputGroup()}
+            ${cashflowSummaryGroup('Income', 'income', incomeItems, plan.income)}
+            ${cashflowSummaryGroup('Expenses', 'expense', expenseItems, plan.expenses)}
           </section>
 
           <section class="budget-column">
@@ -669,6 +674,7 @@ function render() {
           Planning tool only. It does not provide personalized financial, investment, tax, or legal advice.
         </footer>
       </main>
+      ${quickEntryOverlay()}
     </div>
   `;
 
@@ -704,99 +710,60 @@ function bindEvents() {
     input.addEventListener('change', render);
   });
 
-  document.querySelectorAll('[data-cashflow]').forEach((input) => {
-    input.addEventListener('input', (event) => {
-      const { cashflow, key } = event.target.dataset;
-      const item = state.cashflowInputs[cashflow]?.find((entry) => entry.key === key);
-      if (!item) return;
-
-      item.amount = event.target.value;
-      updateBudgetFromCashflowInputs();
-      persistLocal();
-    });
-    input.addEventListener('change', () => {
-      scheduleSave();
-      render();
-    });
-  });
-
-  document.querySelectorAll('[data-cashflow-name]').forEach((input) => {
-    input.addEventListener('input', (event) => {
-      const { cashflowName, key } = event.target.dataset;
-      const item = state.cashflowInputs[cashflowName]?.find((entry) => entry.key === key);
-      if (!item) return;
-
-      item.label = event.target.value;
-      persistLocal();
-    });
-    input.addEventListener('change', () => {
-      scheduleSave();
-    });
-  });
-
-  document.querySelectorAll('[data-cashflow-action]').forEach((select) => {
-    select.addEventListener('change', (event) => {
-      const { cashflowAction, key } = event.target.dataset;
-      if (event.target.value === 'rename') {
-        const nameInput = document.querySelector(`[data-cashflow-name="${cashflowAction}"][data-key="${key}"]`);
-        nameInput?.focus();
-        nameInput?.select();
-        event.target.value = '';
-        return;
-      }
-
-      if (event.target.value !== 'remove') return;
-
-      state.cashflowInputs[cashflowAction] = state.cashflowInputs[cashflowAction].filter((item) => item.key !== key);
-      updateBudgetFromCashflowInputs();
-      persistLocal();
-      scheduleSave();
-      render();
-    });
-  });
-
-  document.querySelectorAll('[data-action="remove-cashflow"]').forEach((button) => {
+  document.querySelectorAll('[data-action="open-quick-entry"]').forEach((button) => {
     button.addEventListener('click', (event) => {
-      const { type, key } = event.target.dataset;
-      state.cashflowInputs[type] = state.cashflowInputs[type].filter((item) => item.key !== key);
-      updateBudgetFromCashflowInputs();
-      persistLocal();
-      scheduleSave();
+      const { entryType, sourceType, key } = event.currentTarget.dataset;
+      quickEntry = {
+        entryType,
+        sourceType: sourceType || (entryType === 'income' ? 'income' : 'variable'),
+        key: key || null
+      };
+      render();
+      window.setTimeout(() => document.querySelector('[data-quick-name]')?.focus(), 0);
+    });
+  });
+
+  document.querySelectorAll('[data-action="close-quick-entry"]').forEach((element) => {
+    element.addEventListener('click', (event) => {
+      if (event.target !== event.currentTarget && event.currentTarget.classList.contains('quick-entry-layer')) return;
+      quickEntry = null;
       render();
     });
   });
 
-  document.querySelector('[data-action="remove-selected-expenses"]')?.addEventListener('click', () => {
-    const selected = [...document.querySelectorAll('[data-expense-select]:checked')].map((input) => ({
-      type: input.dataset.type,
-      key: input.dataset.key
-    }));
-    if (!selected.length) return;
+  document.querySelector('[data-action="save-quick-entry"]')?.addEventListener('click', () => {
+    if (!quickEntry) return;
 
-    selected.forEach(({ type, key }) => {
-      state.cashflowInputs[type] = state.cashflowInputs[type].filter((item) => item.key !== key);
-    });
+    const label = document.querySelector('[data-quick-name]')?.value?.trim() || 'Unnamed item';
+    const amount = document.querySelector('[data-quick-amount]')?.value ?? '';
+    const sourceType = quickEntry.sourceType || (quickEntry.entryType === 'income' ? 'income' : 'variable');
+    const group = state.cashflowInputs[sourceType];
+    const existing = group?.find((item) => item.key === quickEntry.key);
+    if (!group) return;
+
+    if (existing) {
+      existing.label = label;
+      existing.amount = amount;
+    } else {
+      group.push({ key: makeCashflowKey(sourceType), label, amount });
+    }
+
+    quickEntry = null;
     updateBudgetFromCashflowInputs();
     persistLocal();
     scheduleSave();
     render();
   });
 
-  document.querySelectorAll('[data-action="add-cashflow"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      const { type } = event.target.dataset;
-      const group = state.cashflowInputs[type];
-      if (!group) return;
+  document.querySelector('[data-action="remove-quick-entry"]')?.addEventListener('click', () => {
+    if (!quickEntry?.key) return;
 
-      group.push({
-        key: makeCashflowKey(type),
-        label: type === 'fixed' ? 'New fixed expense' : 'New variable expense',
-        amount: ''
-      });
-      persistLocal();
-      scheduleSave();
-      render();
-    });
+    state.cashflowInputs[quickEntry.sourceType] = state.cashflowInputs[quickEntry.sourceType].filter((item) => item.key !== quickEntry.key);
+    quickEntry = null;
+    updateBudgetFromCashflowInputs();
+    persistLocal();
+    scheduleSave();
+    render();
   });
 
   document.querySelectorAll('[data-focus-slot]').forEach((select) => {
