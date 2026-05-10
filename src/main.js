@@ -113,6 +113,14 @@ let saveTimer;
 let quickEntry = null;
 let assetEntry = null;
 let mobileNavOpen = false;
+let mobileLogoHidden = false;
+let themeMode = localStorage.getItem('wealth-builder-theme') || 'light';
+
+function applyTheme() {
+  document.documentElement.dataset.theme = themeMode;
+}
+
+applyTheme();
 
 function overlayPositionStyle(anchor) {
   if (!anchor) return '';
@@ -515,23 +523,29 @@ function render() {
       <small>${item.value}</small>
     </span>
   `).join('');
+  const mobileNavIcon = mobileNavOpen
+    ? (themeMode === 'dark' ? '/assets/hamburger_nav_x_dark.png' : '/assets/hamburger_nav_x.png')
+    : (themeMode === 'dark' ? '/assets/hamburger_nav_dark.png' : '/assets/hamburger_nav.png');
 
   app.innerHTML = `
     <div class="app-shell">
-      <aside class="sidebar ${mobileNavOpen ? 'nav-open' : ''}">
+      <aside class="sidebar ${mobileNavOpen ? 'nav-open' : ''} ${mobileLogoHidden ? 'logo-hidden' : ''}">
         <div class="brand">
           <a class="brand-mark" href="#" aria-label="Back to top">
             <img src="/assets/dollar_sign_crown_logo.png" alt="Wealth Tracker logo">
           </a>
         </div>
         <button class="mobile-nav-toggle" type="button" data-action="toggle-mobile-nav" aria-label="Open navigation" aria-expanded="${mobileNavOpen}">
-          <img src="${mobileNavOpen ? '/assets/hamburger_nav_x.png' : '/assets/hamburger_nav.png'}" alt="">
+          <img src="${mobileNavIcon}" alt="">
         </button>
         <nav>
           <a href="#">Budget</a>
           <a href="#readiness-section">Readiness</a>
           <a href="#assets">Assets</a>
           <a href="#news">Research</a>
+          <button class="theme-toggle" type="button" data-action="toggle-theme" aria-label="${themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}">
+            <img src="${themeMode === 'dark' ? '/assets/light_button.png' : '/assets/dark_icon.png'}" alt="" aria-hidden="true">
+          </button>
         </nav>
       </aside>
 
@@ -796,7 +810,7 @@ function readonlyBudgetField(label, value) {
   return `
     <label>
       <span>${label}</span>
-      <input type="number" min="0" step="any" inputmode="decimal" value="${editableValue(value)}" readonly aria-readonly="true">
+      <input type="number" min="0" step="any" inputmode="decimal" value="${editableValue(value)}" readonly aria-readonly="true" tabindex="-1">
     </label>
   `;
 }
@@ -807,10 +821,36 @@ function bindEvents() {
     render();
   });
 
+  document.querySelector('[data-action="toggle-theme"]')?.addEventListener('click', () => {
+    themeMode = themeMode === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('wealth-builder-theme', themeMode);
+    applyTheme();
+    render();
+  });
+
   document.querySelectorAll('nav a').forEach((link) => {
-    link.addEventListener('click', () => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const target = link.getAttribute('href');
       mobileNavOpen = false;
-      window.setTimeout(render, 0);
+      render();
+
+      window.setTimeout(() => {
+        if (!target || target === '#') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        const section = document.querySelector(target);
+        if (!section) return;
+
+        const isMobile = window.matchMedia('(max-width: 720px)').matches;
+        const styles = getComputedStyle(document.documentElement);
+        const navHeight = isMobile ? 0 : Number.parseFloat(styles.getPropertyValue('--nav-height')) || 0;
+        const anchorGap = isMobile ? 2 : Number.parseFloat(styles.getPropertyValue('--anchor-gap')) || 0;
+        const top = section.getBoundingClientRect().top + window.scrollY - navHeight - anchorGap;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }, 0);
     });
   });
 
@@ -1027,6 +1067,51 @@ function bindEvents() {
     });
     input.addEventListener('change', render);
   });
+
+  document.querySelectorAll('input[type="number"]:not([readonly])').forEach((input) => {
+    input.addEventListener('mousedown', handleDarkNumberStepper);
+    input.addEventListener('mousemove', handleDarkNumberStepperCursor);
+    input.addEventListener('mouseleave', () => {
+      input.style.cursor = '';
+    });
+  });
+}
+
+function handleDarkNumberStepperCursor(event) {
+  const input = event.currentTarget;
+  if (themeMode !== 'dark' || input.disabled || input.readOnly) {
+    input.style.cursor = '';
+    return;
+  }
+
+  const rect = input.getBoundingClientRect();
+  input.style.cursor = rect.right - event.clientX <= 32 ? 'pointer' : '';
+}
+
+function handleDarkNumberStepper(event) {
+  if (themeMode !== 'dark') return;
+
+  const input = event.currentTarget;
+  if (input.disabled || input.readOnly) return;
+
+  const rect = input.getBoundingClientRect();
+  const arrowZoneWidth = 32;
+  if (rect.right - event.clientX > arrowZoneWidth) return;
+
+  event.preventDefault();
+  input.focus();
+
+  const currentValue = Number(input.value) || 0;
+  const isDecimalField = String(input.value).includes('.') || input.name === 'emergency_apy';
+  const step = isDecimalField ? 0.01 : 1;
+  const direction = event.clientY < rect.top + rect.height / 2 ? 1 : -1;
+  const min = input.min === '' ? -Infinity : Number(input.min);
+  const max = input.max === '' ? Infinity : Number(input.max);
+  const nextValue = Math.min(max, Math.max(min, currentValue + direction * step));
+
+  input.value = isDecimalField ? Number(nextValue.toFixed(2)).toString() : String(Math.round(nextValue));
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function scheduleSave() {
@@ -1199,3 +1284,11 @@ async function savePlan() {
 loadLocal();
 render();
 loadSupabaseData();
+
+window.addEventListener('scroll', () => {
+  const shouldHideLogo = window.matchMedia('(max-width: 720px)').matches && window.scrollY > 12;
+  if (shouldHideLogo === mobileLogoHidden) return;
+
+  mobileLogoHidden = shouldHideLogo;
+  document.querySelector('.sidebar')?.classList.toggle('logo-hidden', mobileLogoHidden);
+}, { passive: true });
