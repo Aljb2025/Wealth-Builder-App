@@ -112,6 +112,7 @@ const app = document.querySelector('#app');
 let saveTimer;
 let quickEntry = null;
 let assetEntry = null;
+let mobileNavOpen = false;
 
 function overlayPositionStyle(anchor) {
   if (!anchor) return '';
@@ -517,12 +518,15 @@ function render() {
 
   app.innerHTML = `
     <div class="app-shell">
-      <aside class="sidebar">
+      <aside class="sidebar ${mobileNavOpen ? 'nav-open' : ''}">
         <div class="brand">
           <a class="brand-mark" href="#" aria-label="Back to top">
             <img src="/assets/dollar_sign_crown_logo.png" alt="Wealth Tracker logo">
           </a>
         </div>
+        <button class="mobile-nav-toggle" type="button" data-action="toggle-mobile-nav" aria-label="Open navigation" aria-expanded="${mobileNavOpen}">
+          <img src="${mobileNavOpen ? '/assets/hamburger_nav_x.png' : '/assets/hamburger_nav.png'}" alt="">
+        </button>
         <nav>
           <a href="#">Budget</a>
           <a href="#readiness-section">Readiness</a>
@@ -750,7 +754,6 @@ function render() {
           </div>
           <div class="news-articles-title">
             <strong>Wealth Builder News</strong>
-            <span>Latest 3 articles</span>
           </div>
           <div class="news-list">
             ${dailyNews.map((item) => `
@@ -795,6 +798,18 @@ function monthlyExpensesField(value) {
 }
 
 function bindEvents() {
+  document.querySelector('[data-action="toggle-mobile-nav"]')?.addEventListener('click', () => {
+    mobileNavOpen = !mobileNavOpen;
+    render();
+  });
+
+  document.querySelectorAll('nav a').forEach((link) => {
+    link.addEventListener('click', () => {
+      mobileNavOpen = false;
+      window.setTimeout(render, 0);
+    });
+  });
+
   document.querySelectorAll('#budget input, #budget select').forEach((input) => {
     input.addEventListener('input', (event) => {
       const { name, value, type } = event.target;
