@@ -65,67 +65,32 @@ const defaultAllocations = assetClasses.map((asset, index) => ({
 
 const fallbackNews = [
   {
-    title: 'Savings rates remain central to emergency fund decisions in 2026',
-    source: 'Bankrate',
-    url: 'https://www.bankrate.com/banking/savings/savings-money-market-account-rate-forecast/',
-    published_at: '2026-02-03',
-    summary: 'High-yield savings may still outpace traditional bank savings, but expected rate cuts can reduce future APY.'
+    title: 'Data, Iran, US-China meeting in focus for scorching US stock market',
+    source: 'Reuters',
+    url: 'https://www.investing.com/news/economy-news/data-iran-uschina-meeting-in-focus-for-scorching-us-stock-market-4674806',
+    published_at: '2026-05-10',
+    summary: 'Markets are watching inflation data, geopolitical risk, and U.S.-China talks after a strong equity rebound.'
   },
   {
-    title: 'CDs, high-yield savings, and money market accounts compete for short-term cash',
-    source: 'CBS News',
-    url: 'https://www.cbsnews.com/news/18000-cd-vs-high-yield-savings-account-money-market-account-earn-most-2026/',
-    published_at: '2026-04-27',
-    summary: 'Liquid accounts keep flexibility while CDs can lock yield, making liquidity a key emergency-fund tradeoff.'
-  },
-  {
-    title: 'Treasury issuance and bill yields remain a watch item for cash allocations',
-    source: 'Wolf Street',
-    url: 'https://wolfstreet.com/2026/05/03/the-us-government-sold-723-billion-of-treasury-securities-this-week-inflation-jumped-and-met-t-bill-yields/',
-    published_at: '2026-05-03',
-    summary: 'Short-term Treasury supply and yield changes matter for investors comparing bills, CDs, and high-yield savings.'
-  },
-  {
-    title: 'Emergency fund planning starts with matching cash to real expenses',
-    source: 'Investopedia',
-    url: 'https://www.investopedia.com/terms/e/emergency_fund.asp',
-    published_at: '2026-05-04',
-    summary: 'Emergency savings targets work best when monthly expenses, debt, and liquidity needs are reviewed together.'
-  },
-  {
-    title: 'Treasury bills remain a flexible short-term cash tool',
-    source: 'TreasuryDirect',
-    url: 'https://www.treasurydirect.gov/marketable-securities/treasury-bills/',
-    published_at: '2026-05-05',
-    summary: 'T-bills can support short-term cash planning when investors compare yield, maturity, and liquidity.'
-  },
-  {
-    title: 'High-yield savings accounts remain a core cash option',
-    source: 'NerdWallet',
-    url: 'https://www.nerdwallet.com/best/banking/high-yield-online-savings-accounts',
-    published_at: '2026-05-06',
-    summary: 'High-yield savings accounts can keep emergency cash liquid while earning more than many traditional accounts.'
-  },
-  {
-    title: 'Debt payoff strategy can free up investing cash flow',
-    source: 'Bankrate',
-    url: 'https://www.bankrate.com/personal-finance/debt/how-to-pay-off-debt/',
-    published_at: '2026-05-07',
-    summary: 'A clear payoff order helps households reduce interest drag before scaling new investing dollars.'
-  },
-  {
-    title: 'Asset allocation connects risk profile with long-term targets',
-    source: 'Fidelity',
-    url: 'https://www.fidelity.com/learning-center/investment-products/mutual-funds/asset-allocation-mutual-funds',
-    published_at: '2026-05-08',
-    summary: 'Allocation targets can help balance stocks, cash, real estate, and retirement accounts over time.'
-  },
-  {
-    title: 'CDs can compete with savings accounts for planned cash',
-    source: 'CBS News',
-    url: 'https://www.cbsnews.com/news/cd-vs-high-yield-savings-account-which-is-better-now/',
+    title: 'S&P 500 is at new highs, but BofA warns CTA buying is losing momentum',
+    source: 'Investing.com',
+    url: 'https://www.investing.com/news/stock-market-news/sp-500-is-at-new-highs-but-bofa-warns-cta-buying-is-losing-momentum-4674661',
     published_at: '2026-05-09',
-    summary: 'CDs may offer rate certainty, but emergency money usually benefits from fast access and liquidity.'
+    summary: 'The stock market is near record levels, but trend-following demand may be slowing after the rally.'
+  },
+  {
+    title: 'Best CD rates of May 2026',
+    source: 'Bankrate',
+    url: 'https://www.bankrate.com/banking/cds/cd-rates/',
+    published_at: '2026-05-09',
+    summary: 'CD rates remain a short-term cash option to compare against high-yield savings and emergency liquidity needs.'
+  },
+  {
+    title: 'Gold heads for weekly advance as markets monitor Iran tensions and U.S. jobs data',
+    source: 'Yahoo Finance',
+    url: 'https://finance.yahoo.com/markets/commodities/articles/gold-heads-weekly-advance-markets-091934626.html',
+    published_at: '2026-05-08',
+    summary: 'Gold remained in focus as investors weighed geopolitical tension, jobs data, and safe-haven demand.'
   }
 ];
 
@@ -398,10 +363,24 @@ function cashflowSummaryGroup(title, type, items, total) {
 }
 
 function getDailyNewsItems(items) {
-  if (items.length <= 3) return items.slice(0, 3);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const twoDaysAgo = new Date(today);
+  twoDaysAgo.setDate(today.getDate() - 2);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const recentItems = items.filter((item) => {
+    const published = new Date(`${item.published_at}T00:00:00`);
+    return published >= twoDaysAgo && published < tomorrow;
+  });
+  const pool = recentItems.length >= 3
+    ? recentItems
+    : [...items].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 
-  const dayIndex = Math.floor(Date.now() / 86400000) % items.length;
-  return [0, 1, 2].map((offset) => items[(dayIndex + offset) % items.length]);
+  if (pool.length <= 3) return pool.slice(0, 3);
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % pool.length;
+  return [0, 1, 2].map((offset) => pool[(dayIndex + offset) % pool.length]);
 }
 
 function mergeNewsItems(primary, fallback) {
@@ -511,11 +490,30 @@ function render() {
   const insightClass = insightAsset ? assetClasses.find((asset) => asset.key === insightAsset.asset_key) : null;
   const insightPercent = insightAsset && plan.portfolioTotal ? (netAssetValue(insightAsset) / plan.portfolioTotal) * 100 : 0;
   const savingsGap = Math.max((plan.expenses * 3) - numberValue(state.budget.emergency_current), 0);
+  const debtTip = plan.debt > 0
+    ? `Use the avalanche method first: send extra payoff dollars to the highest APR balance while keeping minimums current.`
+    : `Debt is clear. Keep avoiding new high-interest balances so more monthly cash can move into savings and assets.`;
   const researchTakeaway = plan.readiness.emergency && plan.readiness.debt
     ? `Your base is in good shape. Keep emergency cash liquid, then route new investing dollars toward ${insightAsset?.asset_label || 'your highest-priority assets'}.`
     : plan.readiness.emergency
       ? `Emergency savings are above the 3-month mark, so the next research priority is debt payoff and cash-flow protection.`
       : `Your research priority should stay on liquid savings options until the 3-month emergency fund is fully covered.`;
+  const marketWatchlist = [
+    { label: 'HYSA', value: `${pct(state.budget.emergency_apy)} APY`, tone: 'up' },
+    { label: 'Treasury Bills', value: 'cash option', tone: 'watch' },
+    { label: 'S&P 500', value: 'core market', tone: 'up' },
+    { label: 'Bitcoin', value: 'high volatility', tone: 'down' },
+    { label: 'Gold', value: 'portfolio hedge', tone: 'watch' },
+    { label: 'CD Ladder', value: 'rate lock', tone: 'up' },
+    { label: 'Real Estate', value: 'low liquidity', tone: 'watch' },
+    { label: 'Debt APR', value: pct(state.budget.debt_apr), tone: plan.debt > 0 ? 'down' : 'up' },
+  ];
+  const marketTickerItems = [...marketWatchlist, ...marketWatchlist].map((item) => `
+    <span class="watchlist-pill ${item.tone}">
+      <strong>${item.label}</strong>
+      <small>${item.value}</small>
+    </span>
+  `).join('');
 
   app.innerHTML = `
     <div class="app-shell">
@@ -526,7 +524,7 @@ function render() {
           </a>
         </div>
         <nav>
-          <a href="#budget-section">Budget</a>
+          <a href="#">Budget</a>
           <a href="#readiness-section">Readiness</a>
           <a href="#assets">Assets</a>
           <a href="#news">Research</a>
@@ -572,22 +570,13 @@ function render() {
               <div class="section-title">
                 <strong>Budget Calculator</strong>
               </div>
-              ${field('Plan name', 'name', 'text')}
               ${field('Monthly income', 'monthly_income')}
               ${monthlyExpensesField(plan.expenses)}
               ${field('Debt balance', 'debt_balance')}
               ${field('Debt APR', 'debt_apr')}
               ${field('Emergency Fund', 'emergency_current')}
-              ${field('Monthly Fun Fund', 'emergency_monthly_need')}
               ${field('Emergency Fund Savings Account APY', 'emergency_apy')}
               ${field('Monthly contribution', 'monthly_contribution')}
-              <label>
-                <span>Risk profile</span>
-                <select name="risk_profile">
-                  ${['conservative', 'balanced', 'growth'].map((item) => `<option value="${item}" ${state.budget.risk_profile === item ? 'selected' : ''}>${item}</option>`).join('')}
-                </select>
-              </label>
-              ${field('Timeline years', 'timeline_years')}
             </form>
             <section class="panel guidance-panel">
               <div class="section-title">
@@ -713,7 +702,7 @@ function render() {
 
         <section id="news" class="panel news-panel">
           <div class="section-title">
-            <span class="news-title">Wealth Builder News</span>
+            <span class="news-title">Research Center</span>
           </div>
           <div class="research-grid">
             <article class="research-card cash-rates-card">
@@ -739,6 +728,29 @@ function render() {
               <strong>Research takeaway</strong>
               <p>${researchTakeaway}</p>
             </article>
+            <article class="research-card debt-tip-card">
+              <span>Debt Payoff Tip</span>
+              <strong>${plan.debt > 0 ? `${pct(state.budget.debt_apr)} APR` : 'Debt clear'}</strong>
+              <p>${debtTip}</p>
+              <div>
+                <small>Suggested payoff</small>
+                <b>${money(debtSnapshotPayment)}</b>
+              </div>
+            </article>
+          </div>
+          <div class="market-watchlist" aria-label="Market watchlist">
+            <div class="market-watchlist-head">
+              <strong>Market Watchlist</strong>
+            </div>
+            <div class="watchlist-marquee">
+              <div class="watchlist-track">
+                ${marketTickerItems}
+              </div>
+            </div>
+          </div>
+          <div class="news-articles-title">
+            <strong>Wealth Builder News</strong>
+            <span>Latest 3 articles</span>
           </div>
           <div class="news-list">
             ${dailyNews.map((item) => `
