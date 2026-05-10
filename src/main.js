@@ -1286,7 +1286,15 @@ render();
 loadSupabaseData();
 
 window.addEventListener('scroll', () => {
-  const shouldHideLogo = window.matchMedia('(max-width: 720px)').matches && window.scrollY > 12;
+  const isMobile = window.matchMedia('(max-width: 720px)').matches;
+  const shouldHideLogo = isMobile && window.scrollY > 12;
+
+  if (isMobile && mobileNavOpen) {
+    mobileNavOpen = false;
+    render();
+    return;
+  }
+
   if (shouldHideLogo === mobileLogoHidden) return;
 
   mobileLogoHidden = shouldHideLogo;

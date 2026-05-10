@@ -1459,10 +1459,24 @@ html[data-theme="dark"] .quick-entry-panel {
   }
 
   .quick-entry-panel {
-    top: 86px;
-    right: 14px;
-    left: 14px;
+    top: 0;
+    right: 0;
+    left: 0;
     width: auto;
+    max-height: min(88vh, 560px);
+    padding: 20px 18px 18px;
+    border-radius: 0 0 12px 12px;
+    overflow-y: auto;
+  }
+
+  .quick-entry-layer {
+    z-index: 60;
+    background: rgba(6, 18, 29, 0.42);
+    pointer-events: auto;
+  }
+
+  html[data-theme="dark"] .quick-entry-layer {
+    background: rgba(2, 9, 15, 0.62);
   }
 
   .asset-summary-item {
