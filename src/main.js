@@ -574,7 +574,7 @@ function render() {
               <div class="section-title">
                 <strong>Budget Calculator</strong>
               </div>
-              ${field('Monthly income', 'monthly_income')}
+              ${readonlyBudgetField('Monthly income', plan.income)}
               ${monthlyExpensesField(plan.expenses)}
               ${field('Debt balance', 'debt_balance')}
               ${field('Debt APR', 'debt_apr')}
@@ -789,9 +789,13 @@ function field(label, name, type = 'number') {
 }
 
 function monthlyExpensesField(value) {
+  return readonlyBudgetField('Monthly expenses', value);
+}
+
+function readonlyBudgetField(label, value) {
   return `
     <label>
-      <span>Monthly expenses</span>
+      <span>${label}</span>
       <input type="number" min="0" step="any" inputmode="decimal" value="${editableValue(value)}" readonly aria-readonly="true">
     </label>
   `;
