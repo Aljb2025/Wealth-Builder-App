@@ -24,7 +24,7 @@ const defaultBudget = {
   debt_balance: 4200,
   debt_apr: 12.5,
   emergency_current: 18500,
-  emergency_monthly_need: 5200,
+  emergency_monthly_need: 0,
   emergency_apy: 4.2,
   monthly_contribution: 1900,
   risk_profile: 'balanced',
@@ -238,8 +238,8 @@ function calculatePlan() {
   const activeAssets = activeAllocations();
   const income = numberValue(state.budget.monthly_income);
   const expenses = numberValue(state.budget.fixed_expenses) + numberValue(state.budget.variable_expenses);
-  const monthlyFunFund = numberValue(state.budget.emergency_monthly_need);
-  const cashflow = income - expenses - monthlyFunFund;
+  const monthlyFunFund = 0;
+  const cashflow = income - expenses;
   const monthlyNeed = Math.max(expenses, 1);
   const emergencyCurrent = numberValue(state.budget.emergency_current);
   const emergencyMonths = emergencyCurrent / monthlyNeed;
