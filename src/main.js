@@ -183,24 +183,28 @@ function updateBudgetFromCashflowInputs() {
 }
 
 function ensureCashflowInputs() {
-  if (state.cashflowInputs?.income?.length && state.cashflowInputs?.fixed?.length && state.cashflowInputs?.variable?.length) return;
+  if (
+    Array.isArray(state.cashflowInputs?.income)
+    && Array.isArray(state.cashflowInputs?.fixed)
+    && Array.isArray(state.cashflowInputs?.variable)
+  ) return;
 
   state.cashflowInputs = cashflowInputsFromBudget(state.budget);
 }
 
 function normalizeCashflowInputs(inputs) {
   return {
-    income: (inputs?.income?.length ? inputs.income : defaultCashflowInputs.income).map((item, index) => ({
+    income: (Array.isArray(inputs?.income) ? inputs.income : defaultCashflowInputs.income).map((item, index) => ({
       key: item.key || `income_${index}`,
       label: item.label || `Income ${index + 1}`,
       amount: editableValue(item.amount)
     })),
-    fixed: (inputs?.fixed?.length ? inputs.fixed : defaultCashflowInputs.fixed).map((item, index) => ({
+    fixed: (Array.isArray(inputs?.fixed) ? inputs.fixed : defaultCashflowInputs.fixed).map((item, index) => ({
       key: item.key || `fixed_${index}`,
       label: item.label || `Fixed expense ${index + 1}`,
       amount: editableValue(item.amount)
     })),
-    variable: (inputs?.variable?.length ? inputs.variable : defaultCashflowInputs.variable).map((item, index) => ({
+    variable: (Array.isArray(inputs?.variable) ? inputs.variable : defaultCashflowInputs.variable).map((item, index) => ({
       key: item.key || `variable_${index}`,
       label: item.label || `Variable expense ${index + 1}`,
       amount: editableValue(item.amount)
@@ -1166,6 +1170,10 @@ function loadLocal() {
   }
 }
 
+function hasLocalPlan() {
+  return Boolean(localStorage.getItem('wealthbuilder-plan'));
+}
+
 async function loadSupabaseData() {
   if (!supabase) return;
 
@@ -1184,6 +1192,7 @@ async function loadSupabaseData() {
 
   if (profile) {
     const localVisibleAssetKeys = [...state.visibleAssetKeys];
+    const hasSavedLocalPlan = hasLocalPlan();
     state.profileId = profile.id;
     Object.keys(state.budget).forEach((key) => {
       if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
@@ -1197,7 +1206,7 @@ async function loadSupabaseData() {
       .filter((item) => item.focus_rank)
       .sort((a, b) => a.focus_rank - b.focus_rank)
       .map((item) => item.asset_key);
-    state.visibleAssetKeys = localVisibleAssetKeys.length ? localVisibleAssetKeys : profileFocusAssetKeys;
+    state.visibleAssetKeys = hasSavedLocalPlan ? localVisibleAssetKeys : profileFocusAssetKeys;
     syncVisibleAssets();
     state.status = 'Synced with Supabase';
   }

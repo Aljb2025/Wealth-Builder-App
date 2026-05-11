@@ -1346,12 +1346,14 @@ html[data-theme="dark"] .quick-entry-panel {
     padding: 9px 16px;
     background: transparent;
     box-shadow: none;
+    pointer-events: none;
   }
 
   .brand,
   .mobile-nav-toggle {
     position: relative;
     z-index: 2;
+    pointer-events: auto;
   }
 
   .sidebar.logo-hidden .brand {
@@ -1379,6 +1381,7 @@ html[data-theme="dark"] .quick-entry-panel {
     box-shadow: 0 16px 34px rgba(22, 47, 67, 0.2);
     overflow: hidden;
     z-index: 1;
+    pointer-events: auto;
   }
 
   html[data-theme="dark"] nav {
