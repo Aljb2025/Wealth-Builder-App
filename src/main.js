@@ -99,6 +99,13 @@ const state = {
   allocations: structuredClone(defaultAllocations),
   news: fallbackNews,
   cashflowInputs: structuredClone(defaultCashflowInputs),
+  payoffScenario: {
+    asset_key: 'real_estate_home',
+    interest_rate: 6.5,
+    regular_payment: 1200,
+    extra_monthly: 0,
+    extra_annual: 0
+  },
   profileId: null,
   status: isSupabaseConfigured ? 'Supabase ready' : 'Local draft mode',
   saving: false,
@@ -232,6 +239,45 @@ function activeAllocations() {
 
 function netAssetValue(item) {
   return Math.max(numberValue(item.current_value) - numberValue(item.owed_debt), 0);
+}
+
+function payoffMonths(balance, annualRate, monthlyPayment, annualExtra = 0) {
+  const principal = Math.max(numberValue(balance), 0);
+  const payment = Math.max(numberValue(monthlyPayment), 0);
+  const yearlyExtra = Math.max(numberValue(annualExtra), 0);
+  const monthlyRate = Math.max(numberValue(annualRate), 0) / 100 / 12;
+
+  if (!principal) return { months: 0, interest: 0, possible: true };
+  if (!payment && !yearlyExtra) return { months: 0, interest: 0, possible: false };
+
+  let remaining = principal;
+  let months = 0;
+  let interest = 0;
+
+  while (remaining > 0.01 && months < 1200) {
+    const monthlyInterest = remaining * monthlyRate;
+    const extraThisMonth = months % 12 === 11 ? yearlyExtra : 0;
+    const totalPayment = payment + extraThisMonth;
+
+    if (totalPayment <= monthlyInterest && extraThisMonth <= monthlyInterest) {
+      return { months: 0, interest: 0, possible: false };
+    }
+
+    interest += monthlyInterest;
+    remaining = Math.max(remaining + monthlyInterest - totalPayment, 0);
+    months += 1;
+  }
+
+  return { months, interest, possible: months < 1200 };
+}
+
+function formatPayoffTime(months) {
+  if (!months) return 'Not available';
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  if (!years) return `${remainingMonths} mo`;
+  if (!remainingMonths) return `${years} yr`;
+  return `${years} yr ${remainingMonths} mo`;
 }
 
 function calculatePlan() {
@@ -502,6 +548,22 @@ function render() {
   const insightAsset = focus[0] || topAssets[0];
   const insightClass = insightAsset ? assetClasses.find((asset) => asset.key === insightAsset.asset_key) : null;
   const insightPercent = insightAsset && plan.portfolioTotal ? (netAssetValue(insightAsset) / plan.portfolioTotal) * 100 : 0;
+  const payoffEligibleAssetKeys = ['real_estate_home', 'real_estate_rental'];
+  const realEstateAssets = state.allocations.filter((item) => payoffEligibleAssetKeys.includes(item.asset_key));
+  const selectedPayoffAsset = realEstateAssets.find((item) => item.asset_key === state.payoffScenario.asset_key) || realEstateAssets[0];
+  const payoffBalance = numberValue(selectedPayoffAsset?.owed_debt);
+  const payoffRate = numberValue(state.payoffScenario.interest_rate);
+  const regularPayoff = numberValue(state.payoffScenario.regular_payment);
+  const extraMonthly = numberValue(state.payoffScenario.extra_monthly);
+  const extraAnnual = numberValue(state.payoffScenario.extra_annual);
+  const baselinePayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff, 0);
+  const acceleratedPayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff + extraMonthly, extraAnnual);
+  const payoffMonthsSaved = baselinePayoff.possible && acceleratedPayoff.possible
+    ? Math.max(baselinePayoff.months - acceleratedPayoff.months, 0)
+    : 0;
+  const payoffInterestSaved = baselinePayoff.possible && acceleratedPayoff.possible
+    ? Math.max(baselinePayoff.interest - acceleratedPayoff.interest, 0)
+    : 0;
   const savingsGap = Math.max((plan.expenses * 3) - numberValue(state.budget.emergency_current), 0);
   const debtTip = plan.debt > 0
     ? `Use the avalanche method first: send extra payoff dollars to the highest APR balance while keeping minimums current.`
@@ -720,6 +782,46 @@ function render() {
               `;
             }).join('')}
           </div>
+          <section class="payoff-scenario">
+            <div class="section-title">
+              <strong>Real Estate Payoff Scenario</strong>
+            </div>
+            <div class="payoff-grid">
+              <label>
+                <span>Property</span>
+                <select data-payoff-field="asset_key">
+                  ${realEstateAssets.map((item) => `<option value="${item.asset_key}" ${item.asset_key === selectedPayoffAsset?.asset_key ? 'selected' : ''}>${item.asset_label}</option>`).join('')}
+                </select>
+              </label>
+              <label>
+                <span>Mortgage balance</span>
+                <input type="number" value="${editableValue(payoffBalance)}" readonly tabindex="-1">
+              </label>
+              <label>
+                <span>Interest rate</span>
+                <input data-payoff-field="interest_rate" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.interest_rate)}">
+              </label>
+              <label>
+                <span>Regular monthly payment</span>
+                <input data-payoff-field="regular_payment" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.regular_payment)}">
+              </label>
+              <label>
+                <span>Extra monthly payment</span>
+                <input data-payoff-field="extra_monthly" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.extra_monthly)}">
+              </label>
+              <label>
+                <span>Extra annual payment</span>
+                <input data-payoff-field="extra_annual" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.extra_annual)}">
+              </label>
+            </div>
+            <div class="payoff-results">
+              <div><span>Current payoff time</span><strong>${baselinePayoff.possible ? formatPayoffTime(baselinePayoff.months) : 'Increase payment'}</strong></div>
+              <div><span>With extra payments</span><strong>${acceleratedPayoff.possible ? formatPayoffTime(acceleratedPayoff.months) : 'Increase payment'}</strong></div>
+              <div><span>Time saved</span><strong>${formatPayoffTime(payoffMonthsSaved)}</strong></div>
+              <div><span>Interest saved</span><strong>${money(payoffInterestSaved)}</strong></div>
+            </div>
+            <p class="note">This scenario uses the selected real estate asset's owed debt, so it does not affect the main short-term debt readiness check.</p>
+          </section>
         </section>
 
         <section id="news" class="panel news-panel">
@@ -1048,6 +1150,23 @@ function bindEvents() {
     render();
   });
 
+  document.querySelectorAll('[data-payoff-field]').forEach((field) => {
+    field.addEventListener('input', (event) => {
+      const key = event.target.dataset.payoffField;
+      state.payoffScenario[key] = event.target.value;
+      persistLocal();
+      scheduleSave();
+    });
+
+    field.addEventListener('change', (event) => {
+      const key = event.target.dataset.payoffField;
+      state.payoffScenario[key] = event.target.value;
+      persistLocal();
+      scheduleSave();
+      render();
+    });
+  });
+
   document.querySelectorAll('[data-asset]').forEach((input) => {
     input.addEventListener('input', (event) => {
       const { asset, field: assetField } = event.target.dataset;
@@ -1135,7 +1254,7 @@ function syncVisibleAssets() {
 }
 
 function isEditingFormInput() {
-  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field]'));
+  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field], [data-payoff-field]'));
 }
 
 function persistLocal() {
@@ -1143,6 +1262,7 @@ function persistLocal() {
     budget: state.budget,
     allocations: state.allocations,
     cashflowInputs: state.cashflowInputs,
+    payoffScenario: state.payoffScenario,
     profileId: state.profileId,
     visibleAssetKeys: state.visibleAssetKeys
   }));
@@ -1156,6 +1276,7 @@ function loadLocal() {
     const parsed = JSON.parse(saved);
     state.budget = { ...state.budget, ...parsed.budget };
     state.cashflowInputs = normalizeCashflowInputs(parsed.cashflowInputs || cashflowInputsFromBudget(state.budget));
+    state.payoffScenario = { ...state.payoffScenario, ...parsed.payoffScenario };
     state.allocations = state.allocations.map((item) => ({
       ...item,
       ...(parsed.allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
