@@ -2,18 +2,18 @@ import './styles.css';
 import { isSupabaseConfigured, supabase, getSessionId } from './supabaseClient.js';
 
 const assetClasses = [
-  { key: 'real_estate_home', label: 'Home', group: 'Real estate', liquidity: 'low', color: '#2f5d7c' },
-  { key: 'real_estate_rental', label: 'Rental', group: 'Real estate', liquidity: 'low', color: '#3f7899' },
-  { key: 'real_estate_land', label: 'Land', group: 'Real estate', liquidity: 'low', color: '#6a8ea4' },
-  { key: 'stocks', label: 'Stocks', group: 'Markets', liquidity: 'high', color: '#58bfa3' },
-  { key: 'gold_silver', label: 'Gold & silver', group: 'Commodities', liquidity: 'medium', color: '#f2b84b' },
-  { key: 'crypto', label: 'Crypto', group: 'Digital', liquidity: 'high', color: '#d96c5f' },
-  { key: 'treasury_bills', label: 'Treasury bills', group: 'Cash', liquidity: 'high', color: '#7aa6b8' },
-  { key: 'mutual_funds', label: 'Mutual funds', group: 'Markets', liquidity: 'high', color: '#4f9d8a' },
-  { key: '401k', label: '401k', group: 'Retirement', liquidity: 'low', color: '#7c8fa3' },
-  { key: 'cds', label: 'CDs', group: 'Cash', liquidity: 'medium', color: '#e2a93b' },
-  { key: 'business', label: 'Personal business', group: 'Ownership', liquidity: 'low', color: '#b85d56' },
-  { key: 'art', label: 'Art', group: 'Collectibles', liquidity: 'low', color: '#8d7a6b' }
+  { key: 'real_estate_home', label: 'Home', group: 'Real estate', liquidity: 'low', color: '#1E88E5' },
+  { key: 'real_estate_rental', label: 'Rental', group: 'Real estate', liquidity: 'low', color: '#4CAF50' },
+  { key: 'real_estate_land', label: 'Land', group: 'Real estate', liquidity: 'low', color: '#FB8C00' },
+  { key: 'stocks', label: 'Stocks', group: 'Markets', liquidity: 'high', color: '#4CAF50' },
+  { key: 'gold_silver', label: 'Gold & silver', group: 'Commodities', liquidity: 'medium', color: '#FFC107' },
+  { key: 'crypto', label: 'Crypto', group: 'Digital', liquidity: 'high', color: '#F53935' },
+  { key: 'treasury_bills', label: 'Treasury bills', group: 'Cash', liquidity: 'high', color: '#1E88E5' },
+  { key: 'mutual_funds', label: 'Mutual funds', group: 'Markets', liquidity: 'high', color: '#4CAF50' },
+  { key: '401k', label: '401k', group: 'Retirement', liquidity: 'low', color: '#1565C0' },
+  { key: 'cds', label: 'CDs', group: 'Cash', liquidity: 'medium', color: '#FFC107' },
+  { key: 'business', label: 'Personal business', group: 'Ownership', liquidity: 'low', color: '#FB8C00' },
+  { key: 'art', label: 'Art', group: 'Collectibles', liquidity: 'low', color: '#D87000' }
 ];
 
 const defaultBudget = {
@@ -24,7 +24,7 @@ const defaultBudget = {
   debt_balance: 4200,
   debt_apr: 12.5,
   emergency_current: 18500,
-  emergency_monthly_need: 5200,
+  emergency_monthly_need: 0,
   emergency_apy: 4.2,
   monthly_contribution: 1900,
   risk_profile: 'balanced',
@@ -65,67 +65,32 @@ const defaultAllocations = assetClasses.map((asset, index) => ({
 
 const fallbackNews = [
   {
-    title: 'Savings rates remain central to emergency fund decisions in 2026',
-    source: 'Bankrate',
-    url: 'https://www.bankrate.com/banking/savings/savings-money-market-account-rate-forecast/',
-    published_at: '2026-02-03',
-    summary: 'High-yield savings may still outpace traditional bank savings, but expected rate cuts can reduce future APY.'
+    title: 'Data, Iran, US-China meeting in focus for scorching US stock market',
+    source: 'Reuters',
+    url: 'https://www.investing.com/news/economy-news/data-iran-uschina-meeting-in-focus-for-scorching-us-stock-market-4674806',
+    published_at: '2026-05-10',
+    summary: 'Markets are watching inflation data, geopolitical risk, and U.S.-China talks after a strong equity rebound.'
   },
   {
-    title: 'CDs, high-yield savings, and money market accounts compete for short-term cash',
-    source: 'CBS News',
-    url: 'https://www.cbsnews.com/news/18000-cd-vs-high-yield-savings-account-money-market-account-earn-most-2026/',
-    published_at: '2026-04-27',
-    summary: 'Liquid accounts keep flexibility while CDs can lock yield, making liquidity a key emergency-fund tradeoff.'
-  },
-  {
-    title: 'Treasury issuance and bill yields remain a watch item for cash allocations',
-    source: 'Wolf Street',
-    url: 'https://wolfstreet.com/2026/05/03/the-us-government-sold-723-billion-of-treasury-securities-this-week-inflation-jumped-and-met-t-bill-yields/',
-    published_at: '2026-05-03',
-    summary: 'Short-term Treasury supply and yield changes matter for investors comparing bills, CDs, and high-yield savings.'
-  },
-  {
-    title: 'Emergency fund planning starts with matching cash to real expenses',
-    source: 'Investopedia',
-    url: 'https://www.investopedia.com/terms/e/emergency_fund.asp',
-    published_at: '2026-05-04',
-    summary: 'Emergency savings targets work best when monthly expenses, debt, and liquidity needs are reviewed together.'
-  },
-  {
-    title: 'Treasury bills remain a flexible short-term cash tool',
-    source: 'TreasuryDirect',
-    url: 'https://www.treasurydirect.gov/marketable-securities/treasury-bills/',
-    published_at: '2026-05-05',
-    summary: 'T-bills can support short-term cash planning when investors compare yield, maturity, and liquidity.'
-  },
-  {
-    title: 'High-yield savings accounts remain a core cash option',
-    source: 'NerdWallet',
-    url: 'https://www.nerdwallet.com/best/banking/high-yield-online-savings-accounts',
-    published_at: '2026-05-06',
-    summary: 'High-yield savings accounts can keep emergency cash liquid while earning more than many traditional accounts.'
-  },
-  {
-    title: 'Debt payoff strategy can free up investing cash flow',
-    source: 'Bankrate',
-    url: 'https://www.bankrate.com/personal-finance/debt/how-to-pay-off-debt/',
-    published_at: '2026-05-07',
-    summary: 'A clear payoff order helps households reduce interest drag before scaling new investing dollars.'
-  },
-  {
-    title: 'Asset allocation connects risk profile with long-term targets',
-    source: 'Fidelity',
-    url: 'https://www.fidelity.com/learning-center/investment-products/mutual-funds/asset-allocation-mutual-funds',
-    published_at: '2026-05-08',
-    summary: 'Allocation targets can help balance stocks, cash, real estate, and retirement accounts over time.'
-  },
-  {
-    title: 'CDs can compete with savings accounts for planned cash',
-    source: 'CBS News',
-    url: 'https://www.cbsnews.com/news/cd-vs-high-yield-savings-account-which-is-better-now/',
+    title: 'S&P 500 is at new highs, but BofA warns CTA buying is losing momentum',
+    source: 'Investing.com',
+    url: 'https://www.investing.com/news/stock-market-news/sp-500-is-at-new-highs-but-bofa-warns-cta-buying-is-losing-momentum-4674661',
     published_at: '2026-05-09',
-    summary: 'CDs may offer rate certainty, but emergency money usually benefits from fast access and liquidity.'
+    summary: 'The stock market is near record levels, but trend-following demand may be slowing after the rally.'
+  },
+  {
+    title: 'Best CD rates of May 2026',
+    source: 'Bankrate',
+    url: 'https://www.bankrate.com/banking/cds/cd-rates/',
+    published_at: '2026-05-09',
+    summary: 'CD rates remain a short-term cash option to compare against high-yield savings and emergency liquidity needs.'
+  },
+  {
+    title: 'Gold heads for weekly advance as markets monitor Iran tensions and U.S. jobs data',
+    source: 'Yahoo Finance',
+    url: 'https://finance.yahoo.com/markets/commodities/articles/gold-heads-weekly-advance-markets-091934626.html',
+    published_at: '2026-05-08',
+    summary: 'Gold remained in focus as investors weighed geopolitical tension, jobs data, and safe-haven demand.'
   }
 ];
 
@@ -134,6 +99,13 @@ const state = {
   allocations: structuredClone(defaultAllocations),
   news: fallbackNews,
   cashflowInputs: structuredClone(defaultCashflowInputs),
+  payoffScenario: {
+    asset_key: 'real_estate_home',
+    interest_rate: 6.5,
+    regular_payment: 1200,
+    extra_monthly: 0,
+    extra_annual: 0
+  },
   profileId: null,
   status: isSupabaseConfigured ? 'Supabase ready' : 'Local draft mode',
   saving: false,
@@ -145,6 +117,31 @@ const state = {
 
 const app = document.querySelector('#app');
 let saveTimer;
+let quickEntry = null;
+let assetEntry = null;
+let mobileNavOpen = false;
+let mobileLogoHidden = false;
+let themeMode = localStorage.getItem('wealth-builder-theme') || 'light';
+
+function applyTheme() {
+  document.documentElement.dataset.theme = themeMode;
+}
+
+applyTheme();
+
+function overlayPositionStyle(anchor) {
+  if (!anchor) return '';
+
+  return ` style="--overlay-top:${Math.round(anchor.top)}px; --overlay-left:${Math.round(anchor.left)}px;"`;
+}
+
+function overlayAnchorFromElement(element) {
+  const rect = element.getBoundingClientRect();
+  const panelWidth = Math.min(360, Math.max(0, window.innerWidth - 32));
+  const left = Math.min(Math.max(rect.left, 16), Math.max(16, window.innerWidth - panelWidth - 16));
+  const top = Math.min(Math.max(rect.bottom + 8, 84), Math.max(84, window.innerHeight - 440));
+  return { top, left };
+}
 
 function money(value) {
   return new Intl.NumberFormat('en-US', {
@@ -193,24 +190,28 @@ function updateBudgetFromCashflowInputs() {
 }
 
 function ensureCashflowInputs() {
-  if (state.cashflowInputs?.income?.length && state.cashflowInputs?.fixed?.length && state.cashflowInputs?.variable?.length) return;
+  if (
+    Array.isArray(state.cashflowInputs?.income)
+    && Array.isArray(state.cashflowInputs?.fixed)
+    && Array.isArray(state.cashflowInputs?.variable)
+  ) return;
 
   state.cashflowInputs = cashflowInputsFromBudget(state.budget);
 }
 
 function normalizeCashflowInputs(inputs) {
   return {
-    income: (inputs?.income?.length ? inputs.income : defaultCashflowInputs.income).map((item, index) => ({
+    income: (Array.isArray(inputs?.income) ? inputs.income : defaultCashflowInputs.income).map((item, index) => ({
       key: item.key || `income_${index}`,
       label: item.label || `Income ${index + 1}`,
       amount: editableValue(item.amount)
     })),
-    fixed: (inputs?.fixed?.length ? inputs.fixed : defaultCashflowInputs.fixed).map((item, index) => ({
+    fixed: (Array.isArray(inputs?.fixed) ? inputs.fixed : defaultCashflowInputs.fixed).map((item, index) => ({
       key: item.key || `fixed_${index}`,
       label: item.label || `Fixed expense ${index + 1}`,
       amount: editableValue(item.amount)
     })),
-    variable: (inputs?.variable?.length ? inputs.variable : defaultCashflowInputs.variable).map((item, index) => ({
+    variable: (Array.isArray(inputs?.variable) ? inputs.variable : defaultCashflowInputs.variable).map((item, index) => ({
       key: item.key || `variable_${index}`,
       label: item.label || `Variable expense ${index + 1}`,
       amount: editableValue(item.amount)
@@ -240,12 +241,51 @@ function netAssetValue(item) {
   return Math.max(numberValue(item.current_value) - numberValue(item.owed_debt), 0);
 }
 
+function payoffMonths(balance, annualRate, monthlyPayment, annualExtra = 0) {
+  const principal = Math.max(numberValue(balance), 0);
+  const payment = Math.max(numberValue(monthlyPayment), 0);
+  const yearlyExtra = Math.max(numberValue(annualExtra), 0);
+  const monthlyRate = Math.max(numberValue(annualRate), 0) / 100 / 12;
+
+  if (!principal) return { months: 0, interest: 0, possible: true };
+  if (!payment && !yearlyExtra) return { months: 0, interest: 0, possible: false };
+
+  let remaining = principal;
+  let months = 0;
+  let interest = 0;
+
+  while (remaining > 0.01 && months < 1200) {
+    const monthlyInterest = remaining * monthlyRate;
+    const extraThisMonth = months % 12 === 11 ? yearlyExtra : 0;
+    const totalPayment = payment + extraThisMonth;
+
+    if (totalPayment <= monthlyInterest && extraThisMonth <= monthlyInterest) {
+      return { months: 0, interest: 0, possible: false };
+    }
+
+    interest += monthlyInterest;
+    remaining = Math.max(remaining + monthlyInterest - totalPayment, 0);
+    months += 1;
+  }
+
+  return { months, interest, possible: months < 1200 };
+}
+
+function formatPayoffTime(months) {
+  if (!months) return 'Not available';
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  if (!years) return `${remainingMonths} mo`;
+  if (!remainingMonths) return `${years} yr`;
+  return `${years} yr ${remainingMonths} mo`;
+}
+
 function calculatePlan() {
   const activeAssets = activeAllocations();
   const income = numberValue(state.budget.monthly_income);
   const expenses = numberValue(state.budget.fixed_expenses) + numberValue(state.budget.variable_expenses);
-  const monthlyFunFund = numberValue(state.budget.emergency_monthly_need);
-  const cashflow = income - expenses - monthlyFunFund;
+  const monthlyFunFund = 0;
+  const cashflow = income - expenses;
   const monthlyNeed = Math.max(expenses, 1);
   const emergencyCurrent = numberValue(state.budget.emergency_current);
   const emergencyMonths = emergencyCurrent / monthlyNeed;
@@ -291,7 +331,7 @@ function allocationSegments(total) {
       const asset = assetClasses.find((entry) => entry.key === item.asset_key);
       const value = netAssetValue(item);
       const span = (value / total) * 100;
-      const segment = `${asset?.color || '#7aa6b8'} ${cursor}% ${cursor + span}%`;
+      const segment = `${asset?.color || '#1E88E5'} ${cursor}% ${cursor + span}%`;
       cursor += span;
       return segment;
     })
@@ -310,75 +350,96 @@ function readinessItem(label, passed, detail) {
   `;
 }
 
-function cashflowInputGroup(title, type, items) {
-  return `
-    <div class="cashflow-group">
-      <div class="cashflow-group-title">
-        <h3>${title}</h3>
-      </div>
-      ${items.map((item) => `
-        <div class="cashflow-entry">
-          <label>
-            <span>Name</span>
-            <input data-cashflow-name="${type}" data-key="${item.key}" type="text" value="${editableValue(item.label)}">
-          </label>
-          <label>
-            <span>Amount</span>
-            <input data-cashflow="${type}" data-key="${item.key}" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.amount)}">
-          </label>
-        </div>
-      `).join('')}
-    </div>
-  `;
+function nextBestMove(plan) {
+  if (!plan.readiness.cashflow) {
+    return {
+      title: 'Increase monthly cashflow',
+      detail: 'Reduce expenses or add income until money is left after expenses and fun fund.',
+      metric: money(Math.abs(plan.cashflow)),
+      label: 'gap to cover'
+    };
+  }
+
+  if (!plan.readiness.debt) {
+    return {
+      title: 'Pay debt below $5,000',
+      detail: 'Route extra cash toward debt first so future dollars can move into savings and investments faster.',
+      metric: money(Math.max(plan.debt - 5000, 0)),
+      label: 'above threshold'
+    };
+  }
+
+  if (!plan.readiness.emergency) {
+    const target = plan.monthlyNeed * 3;
+    return {
+      title: 'Build the 3-month emergency fund',
+      detail: 'Keep cash liquid while building the base emergency fund before prioritizing new investing dollars.',
+      metric: money(Math.max(target - numberValue(state.budget.emergency_current), 0)),
+      label: 'needed for 3 months'
+    };
+  }
+
+  return {
+    title: 'Invest toward your selected assets',
+    detail: 'The core readiness checks are passing, so new dollars can focus on the asset classes you picked.',
+    metric: money(plan.investContribution),
+    label: 'monthly investing'
+  };
 }
 
-function expenseInputGroup() {
-  const expenses = [
+function cashflowItems(type) {
+  if (type === 'income') return state.cashflowInputs.income.map((item) => ({ ...item, type: 'income' }));
+
+  return [
     ...state.cashflowInputs.fixed.map((item) => ({ ...item, type: 'fixed' })),
     ...state.cashflowInputs.variable.map((item) => ({ ...item, type: 'variable' }))
   ];
-  const columns = [expenses.slice(0, 20), expenses.slice(20, 40)];
+}
 
+function cashflowSummaryGroup(title, type, items, total) {
+  const singularTitle = type === 'income' ? 'Income' : 'Expense';
   return `
-    <div class="cashflow-group expense-group">
-      <div class="cashflow-group-title">
-        <h3>Expenses</h3>
+    <div class="cashflow-summary-group">
+      <div class="cashflow-summary-head">
+        <div>
+          <h3>${title}</h3>
+          <strong>${money(total)}</strong>
+        </div>
+        <button class="cashflow-add-btn" type="button" data-action="open-quick-entry" data-entry-type="${type}">
+          Add ${singularTitle}
+        </button>
       </div>
-      <div class="expense-columns">
-        ${columns.map((column) => `
-          <div class="expense-column">
-            ${column.map((item) => `
-              <div class="expense-entry">
-                <label>
-                  <span>Name</span>
-                  <input class="expense-name-input" aria-label="Expense name" data-cashflow-name="${item.type}" data-key="${item.key}" type="text" placeholder="Expense name" value="${editableValue(item.label)}">
-                </label>
-                <label>
-                  <span>Amount</span>
-                  <input class="expense-amount-input" aria-label="Expense amount" data-cashflow="${item.type}" data-key="${item.key}" type="number" min="0" max="99999999" step="any" inputmode="decimal" placeholder="Amount" value="${editableValue(item.amount)}">
-                </label>
-                <label class="expense-check">
-                  <span class="sr-only">Select expense</span>
-                  <input type="checkbox" data-expense-select data-type="${item.type}" data-key="${item.key}">
-                </label>
-              </div>
-            `).join('')}
-          </div>
-        `).join('')}
-      </div>
-      <div class="expense-actions">
-        <button class="cashflow-add-btn expense-add-btn" type="button" data-action="add-cashflow" data-type="variable">Add</button>
-        <button class="expense-remove-btn" type="button" data-action="remove-selected-expenses">Remove</button>
+      <div class="cashflow-list">
+        ${items.length ? items.map((item) => `
+          <button class="cashflow-list-item" type="button" data-action="open-quick-entry" data-entry-type="${type}" data-source-type="${item.type}" data-key="${item.key}">
+            <span>${item.label || 'Unnamed item'}</span>
+            <strong>${money(item.amount)}</strong>
+          </button>
+        `).join('') : `<p class="empty-note">No ${title.toLowerCase()} entered yet.</p>`}
       </div>
     </div>
   `;
 }
 
 function getDailyNewsItems(items) {
-  if (items.length <= 3) return items.slice(0, 3);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const twoDaysAgo = new Date(today);
+  twoDaysAgo.setDate(today.getDate() - 2);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const recentItems = items.filter((item) => {
+    const published = new Date(`${item.published_at}T00:00:00`);
+    return published >= twoDaysAgo && published < tomorrow;
+  });
+  const pool = recentItems.length >= 3
+    ? recentItems
+    : [...items].sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
 
-  const dayIndex = Math.floor(Date.now() / 86400000) % items.length;
-  return [0, 1, 2].map((offset) => items[(dayIndex + offset) % items.length]);
+  if (pool.length <= 3) return pool.slice(0, 3);
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % pool.length;
+  return [0, 1, 2].map((offset) => pool[(dayIndex + offset) % pool.length]);
 }
 
 function mergeNewsItems(primary, fallback) {
@@ -388,6 +449,79 @@ function mergeNewsItems(primary, fallback) {
     seen.add(item.url);
     return true;
   });
+}
+
+function quickEntryOverlay() {
+  if (!quickEntry) return '';
+
+  const isIncome = quickEntry.entryType === 'income';
+  const items = cashflowItems(quickEntry.entryType);
+  const selected = items.find((item) => item.key === quickEntry.key && item.type === quickEntry.sourceType);
+  const title = `${selected ? 'Edit' : 'Add'} ${isIncome ? 'Income' : 'Expense'}`;
+
+  return `
+    <div class="quick-entry-layer" data-action="close-quick-entry">
+      <section class="quick-entry-panel" role="dialog" aria-modal="false" aria-label="${title}"${overlayPositionStyle(quickEntry.anchor)}>
+        <div class="quick-entry-title">
+          <strong>${title}</strong>
+          <button type="button" data-action="close-quick-entry" aria-label="Close quick entry">Close</button>
+        </div>
+        <label>
+          <span>Name</span>
+          <input data-quick-name type="text" value="${editableValue(selected?.label)}" placeholder="${isIncome ? 'Income name' : 'Expense name'}">
+        </label>
+        <label>
+          <span>Amount</span>
+          <input data-quick-amount type="number" min="0" step="any" inputmode="decimal" value="${editableValue(selected?.amount)}" placeholder="Amount">
+        </label>
+        <div class="quick-entry-actions">
+          <button class="cashflow-add-btn" type="button" data-action="save-quick-entry">Add</button>
+          <button class="expense-remove-btn" type="button" data-action="remove-quick-entry" ${selected ? '' : 'disabled'}>Remove</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function assetEntryOverlay() {
+  if (!assetEntry) return '';
+
+  const selectedKey = assetEntry.assetKey || state.allocations.find((item) => !state.visibleAssetKeys.includes(item.asset_key))?.asset_key || assetClasses[0].key;
+  const item = state.allocations.find((allocation) => allocation.asset_key === selectedKey) || state.allocations[0];
+  const isExisting = Boolean(assetEntry.assetKey);
+
+  return `
+    <div class="quick-entry-layer" data-action="close-asset-entry">
+      <section class="quick-entry-panel asset-entry-panel" role="dialog" aria-modal="false" aria-label="${isExisting ? 'Edit Asset' : 'Add Asset'}"${overlayPositionStyle(assetEntry.anchor)}>
+        <div class="quick-entry-title">
+          <strong>${isExisting ? 'Edit Asset' : 'Add Asset'}</strong>
+          <button type="button" data-action="close-asset-entry" aria-label="Close asset entry">Close</button>
+        </div>
+        <label>
+          <span>Asset class</span>
+          <select data-asset-entry-field="asset_key">
+            ${assetClasses.map((asset) => `<option value="${asset.key}" ${selectedKey === asset.key ? 'selected' : ''}>${asset.label}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span>Value</span>
+          <input data-asset-entry-field="current_value" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.current_value)}">
+        </label>
+        <label>
+          <span>Owed Debt</span>
+          <input data-asset-entry-field="owed_debt" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.owed_debt)}">
+        </label>
+        <label>
+          <span>Target %</span>
+          <input data-asset-entry-field="target_percent" type="number" min="0" max="100" step="any" inputmode="decimal" value="${editableValue(item.target_percent)}">
+        </label>
+        <div class="quick-entry-actions">
+          <button class="cashflow-add-btn" type="button" data-action="save-asset-entry">Add</button>
+          <button class="expense-remove-btn" type="button" data-action="remove-asset-entry" ${isExisting ? '' : 'disabled'}>Remove</button>
+        </div>
+      </section>
+    </div>
+  `;
 }
 
 function render() {
@@ -406,101 +540,185 @@ function render() {
   const emergencyPercent = Math.max(0, Math.min(100, (plan.emergencyMonths / 12) * 100));
   const debtPercent = Math.max(0, Math.min(100, 100 - (plan.debt / Math.max(plan.income * 2, 1)) * 100));
   const dailyNews = getDailyNewsItems(state.news);
+  const move = nextBestMove(plan);
+  const debtSnapshotPayment = Math.max(plan.debtContribution || Math.min(Math.max(plan.cashflow, 0), plan.debt), 0);
+  const debtSnapshotMonths = debtSnapshotPayment > 0 && plan.debt > 0 ? Math.ceil(plan.debt / debtSnapshotPayment) : 0;
+  const incomeItems = cashflowItems('income');
+  const expenseItems = cashflowItems('expense');
+  const insightAsset = focus[0] || topAssets[0];
+  const insightClass = insightAsset ? assetClasses.find((asset) => asset.key === insightAsset.asset_key) : null;
+  const insightPercent = insightAsset && plan.portfolioTotal ? (netAssetValue(insightAsset) / plan.portfolioTotal) * 100 : 0;
+  const payoffEligibleAssetKeys = ['real_estate_home', 'real_estate_rental'];
+  const realEstateAssets = state.allocations.filter((item) => payoffEligibleAssetKeys.includes(item.asset_key));
+  const selectedPayoffAsset = realEstateAssets.find((item) => item.asset_key === state.payoffScenario.asset_key) || realEstateAssets[0];
+  const payoffBalance = numberValue(selectedPayoffAsset?.owed_debt);
+  const payoffRate = numberValue(state.payoffScenario.interest_rate);
+  const regularPayoff = numberValue(state.payoffScenario.regular_payment);
+  const extraMonthly = numberValue(state.payoffScenario.extra_monthly);
+  const extraAnnual = numberValue(state.payoffScenario.extra_annual);
+  const baselinePayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff, 0);
+  const acceleratedPayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff + extraMonthly, extraAnnual);
+  const payoffMonthsSaved = baselinePayoff.possible && acceleratedPayoff.possible
+    ? Math.max(baselinePayoff.months - acceleratedPayoff.months, 0)
+    : 0;
+  const payoffInterestSaved = baselinePayoff.possible && acceleratedPayoff.possible
+    ? Math.max(baselinePayoff.interest - acceleratedPayoff.interest, 0)
+    : 0;
+  const savingsGap = Math.max((plan.expenses * 3) - numberValue(state.budget.emergency_current), 0);
+  const debtTip = plan.debt > 0
+    ? `Use the avalanche method first: send extra payoff dollars to the highest APR balance while keeping minimums current.`
+    : `Debt is clear. Keep avoiding new high-interest balances so more monthly cash can move into savings and assets.`;
+  const researchTakeaway = plan.readiness.emergency && plan.readiness.debt
+    ? `Your base is in good shape. Keep emergency cash liquid, then route new investing dollars toward ${insightAsset?.asset_label || 'your highest-priority assets'}.`
+    : plan.readiness.emergency
+      ? `Emergency savings are above the 3-month mark, so the next research priority is debt payoff and cash-flow protection.`
+      : `Your research priority should stay on liquid savings options until the 3-month emergency fund is fully covered.`;
+  const marketWatchlist = [
+    { label: 'HYSA', value: `${pct(state.budget.emergency_apy)} APY`, tone: 'up' },
+    { label: 'Treasury Bills', value: 'cash option', tone: 'watch' },
+    { label: 'S&P 500', value: 'core market', tone: 'up' },
+    { label: 'Bitcoin', value: 'high volatility', tone: 'down' },
+    { label: 'Gold', value: 'portfolio hedge', tone: 'watch' },
+    { label: 'CD Ladder', value: 'rate lock', tone: 'up' },
+    { label: 'Real Estate', value: 'low liquidity', tone: 'watch' },
+    { label: 'Debt APR', value: pct(state.budget.debt_apr), tone: plan.debt > 0 ? 'down' : 'up' },
+  ];
+  const marketTickerItems = [...marketWatchlist, ...marketWatchlist].map((item) => `
+    <span class="watchlist-pill ${item.tone}">
+      <strong>${item.label}</strong>
+      <small>${item.value}</small>
+    </span>
+  `).join('');
+  const mobileNavIcon = mobileNavOpen
+    ? (themeMode === 'dark' ? '/assets/hamburger_nav_x_dark.png' : '/assets/hamburger_nav_x.png')
+    : (themeMode === 'dark' ? '/assets/hamburger_nav_dark.png' : '/assets/hamburger_nav.png');
 
   app.innerHTML = `
     <div class="app-shell">
-      <aside class="sidebar">
+      <aside class="sidebar ${mobileNavOpen ? 'nav-open' : ''} ${mobileLogoHidden ? 'logo-hidden' : ''}">
         <div class="brand">
-          <a class="brand-mark" href="#" aria-label="Back to top"><span>$</span></a>
+          <a class="brand-mark" href="#" aria-label="Back to top">
+            <img src="/assets/dollar_sign_crown_logo.png" alt="Wealth Tracker logo">
+          </a>
         </div>
+        <button class="mobile-nav-toggle" type="button" data-action="toggle-mobile-nav" aria-label="Open navigation" aria-expanded="${mobileNavOpen}">
+          <img src="${mobileNavIcon}" alt="">
+        </button>
         <nav>
-          <a href="#budget">Budget</a>
-          <a href="#readiness">Readiness</a>
+          <a href="#">Budget</a>
+          <a href="#readiness-section">Readiness</a>
           <a href="#assets">Assets</a>
           <a href="#news">Research</a>
+          <button class="theme-toggle" type="button" data-action="toggle-theme" aria-label="${themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}">
+            <img src="${themeMode === 'dark' ? '/assets/light_button.png' : '/assets/dark_icon.png'}" alt="" aria-hidden="true">
+          </button>
         </nav>
       </aside>
 
       <main>
-          <header class="hero">
-            <div class="hero-content">
-              <h1>Wealth Tracker</h1>
-              <h2>Online Personal Finance</h2>
-            </div>
-          </header>
-
-        <section class="metric-grid" aria-label="Plan metrics">
-          <article class="metric-card featured">
-            <span>Monthly cashflow</span>
-            <strong>${money(plan.cashflow)}</strong>
-            <div class="bar"><i style="width:${cashflowPercent}%"></i></div>
-          </article>
-          <article class="metric-card">
-            <span>Emergency runway</span>
-            <strong>${plan.emergencyMonths.toFixed(1)} months</strong>
-            <div class="bar mint"><i style="width:${emergencyPercent}%"></i></div>
-          </article>
-          <article class="metric-card">
-            <span>Debt threshold</span>
-            <strong>${money(plan.debt)}</strong>
-            <div class="bar coral"><i style="width:${debtPercent}%"></i></div>
-          </article>
-          <article class="metric-card">
-            <span>Portfolio tracked</span>
-            <strong>${money(plan.portfolioTotal)}</strong>
-            <small>${pct(totalTarget)} target assigned</small>
-          </article>
-        </section>
+        <section id="budget-section" class="budget-section anchored-section">
+          <section class="metric-grid" aria-label="Plan metrics">
+            <article class="metric-card featured">
+              <span>Monthly cashflow</span>
+              <strong>${money(plan.cashflow)}</strong>
+              <div class="bar"><i style="width:${cashflowPercent}%"></i></div>
+            </article>
+            <article class="metric-card">
+              <span>Emergency runway</span>
+              <strong>${plan.emergencyMonths.toFixed(1)} months</strong>
+              <div class="bar mint"><i style="width:${emergencyPercent}%"></i></div>
+            </article>
+            <article class="metric-card">
+              <span>Debt threshold</span>
+              <strong>${money(plan.debt)}</strong>
+              <div class="bar coral"><i style="width:${debtPercent}%"></i></div>
+            </article>
+            <article class="metric-card">
+              <span>Portfolio tracked</span>
+              <strong>${money(plan.portfolioTotal)}</strong>
+              <small>${pct(totalTarget)} target assigned</small>
+            </article>
+          </section>
 
         <section class="workbench">
           <section class="panel cashflow-panel">
             <div class="section-title">
               <strong>Income And Expenses</strong>
             </div>
-            ${cashflowInputGroup('Income', 'income', state.cashflowInputs.income)}
-            ${expenseInputGroup()}
+            ${cashflowSummaryGroup('Income', 'income', incomeItems, plan.income)}
+            ${cashflowSummaryGroup('Expenses', 'expense', expenseItems, plan.expenses)}
           </section>
 
-          <form id="budget" class="panel budget-form">
-            <div class="section-title">
-              <strong>Budget Calculator</strong>
-            </div>
-            ${field('Plan name', 'name', 'text')}
-            ${field('Monthly income', 'monthly_income')}
-            ${monthlyExpensesField(plan.expenses)}
-            ${field('Debt balance', 'debt_balance')}
-            ${field('Debt APR', 'debt_apr')}
-            ${field('Emergency Fund', 'emergency_current')}
-            ${field('Monthly Fun Fund', 'emergency_monthly_need')}
-            ${field('Emergency Fund Savings Account APY', 'emergency_apy')}
-            ${field('Monthly contribution', 'monthly_contribution')}
-            <label>
-              <span>Risk profile</span>
-              <select name="risk_profile">
-                ${['conservative', 'balanced', 'growth'].map((item) => `<option value="${item}" ${state.budget.risk_profile === item ? 'selected' : ''}>${item}</option>`).join('')}
-              </select>
-            </label>
-            ${field('Timeline years', 'timeline_years')}
-          </form>
+          <section class="budget-column">
+            <form id="budget" class="panel budget-form">
+              <div class="section-title">
+                <strong>Budget Calculator</strong>
+              </div>
+              ${readonlyBudgetField('Monthly income', plan.income)}
+              ${monthlyExpensesField(plan.expenses)}
+              ${field('Debt balance', 'debt_balance')}
+              ${field('Debt APR', 'debt_apr')}
+              ${field('Emergency Fund', 'emergency_current')}
+              ${field('Emergency Fund Savings Account APY', 'emergency_apy')}
+              ${field('Monthly contribution', 'monthly_contribution')}
+            </form>
+            <section class="panel guidance-panel">
+              <div class="section-title">
+                <strong>Next Best Move</strong>
+              </div>
+              <div class="guidance-card">
+                <span>${move.label}</span>
+                <strong>${move.metric}</strong>
+                <h3>${move.title}</h3>
+                <p>${move.detail}</p>
+              </div>
+            </section>
+          </section>
+        </section>
         </section>
 
-        <section id="assets" class="portfolio-grid">
-          <article class="panel chart-panel">
-            <div class="section-title">
-              <strong>Allocation map</strong>
-            </div>
-            <div class="donut" style="background: conic-gradient(${allocationSegments(plan.portfolioTotal) || '#dbe5eb 0 100%'})">
-              <div><strong>${money(plan.portfolioTotal)}</strong><span>Total</span></div>
-            </div>
-            <div class="legend">
-              ${topAssets.map((item) => {
-                const asset = assetClasses.find((entry) => entry.key === item.asset_key);
-                const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
-                return `<div><i style="background:${asset?.color || '#7aa6b8'}"></i><span>${item.asset_label}</span><strong>${pct(percent)}</strong></div>`;
-              }).join('')}
-            </div>
-          </article>
-
+        <section id="readiness-section" class="portfolio-grid anchored-section">
+          <div class="readiness-left-stack">
+            <article class="panel chart-panel">
+              <div class="section-title">
+                <strong>Allocation map</strong>
+              </div>
+              <div class="donut" style="background: conic-gradient(${allocationSegments(plan.portfolioTotal) || '#dbe5eb 0 100%'})">
+                <div><strong>${money(plan.portfolioTotal)}</strong><span>Total</span></div>
+              </div>
+              <div class="legend">
+                ${topAssets.map((item) => {
+                  const asset = assetClasses.find((entry) => entry.key === item.asset_key);
+                  const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
+                  return `<div><i style="background:${asset?.color || '#1E88E5'}"></i><span>${item.asset_label}</span><strong>${pct(percent)}</strong></div>`;
+                }).join('')}
+              </div>
+            </article>
+            <section class="panel debt-snapshot-panel">
+              <div class="section-title">
+                <strong>Debt Payoff Snapshot</strong>
+              </div>
+              <div class="debt-snapshot-grid">
+                <div>
+                  <span>Current debt</span>
+                  <strong>${money(plan.debt)}</strong>
+                </div>
+                <div>
+                  <span>APR</span>
+                  <strong>${pct(state.budget.debt_apr)}</strong>
+                </div>
+                <div>
+                  <span>Suggested payoff</span>
+                  <strong>${money(debtSnapshotPayment)}</strong>
+                </div>
+                <div>
+                  <span>Estimated payoff</span>
+                  <strong>${debtSnapshotMonths ? `${debtSnapshotMonths} mo` : 'Ready'}</strong>
+                </div>
+              </div>
+              <p class="note">${plan.debt > 0 ? 'Paying down debt below $5,000 unlocks more of the plan for investing.' : 'Debt is clear, so available dollars can move toward savings and investing.'}</p>
+            </section>
+          </div>
           <section id="readiness" class="panel readiness-panel">
             <div class="section-title">
               <strong>Financial Health</strong>
@@ -534,9 +752,12 @@ function render() {
           </section>
         </section>
 
-        <section class="panel asset-editor">
-          <div class="section-title asset-editor-title">
-            <strong>Asset Classes</strong>
+        <section id="assets" class="panel asset-editor anchored-section">
+          <div class="asset-editor-head">
+            <div class="section-title asset-editor-title">
+              <strong>Asset Classes</strong>
+            </div>
+            <button class="cashflow-add-btn" type="button" data-action="open-asset-entry">Add Asset</button>
           </div>
           <div class="asset-summary">
             <h3>My Top Performing Assets</h3>
@@ -544,34 +765,115 @@ function render() {
               ${focus.map((item) => `<div><span>${item.focus_rank}</span><strong>${item.asset_label}</strong><small>${money(netAssetValue(item))} net</small></div>`).join('')}
             </div>
           </div>
-          <div class="asset-table">
-            ${state.visibleAssetKeys.map((assetKey, index) => {
-              const rank = index + 1;
+          <div class="asset-summary-list">
+            ${state.visibleAssetKeys.map((assetKey) => {
               const item = state.allocations.find((allocation) => allocation.asset_key === assetKey) || state.allocations[0];
               const asset = assetClasses.find((entry) => entry.key === item.asset_key);
+              const percent = plan.portfolioTotal ? (netAssetValue(item) / plan.portfolioTotal) * 100 : 0;
               return `
-                <div class="asset-row">
-                  <div class="asset-name">
-                    <i style="background:${asset?.color || '#7aa6b8'}"></i>
+                <button class="asset-summary-item" type="button" data-action="open-asset-entry" data-asset-key="${item.asset_key}">
+                  <div>
+                    <i style="background:${asset?.color || '#1E88E5'}"></i>
                     <div><strong>${item.asset_label}</strong><span>${asset?.group || 'Asset'} · ${item.liquidity} liquidity</span></div>
                   </div>
-                  <label><span>Asset class</span><select data-focus-slot="${rank}">
-                    <option value="__remove__">Remove</option>
-                    ${assetClasses.map((option) => `<option value="${option.key}" ${item.asset_key === option.key ? 'selected' : ''}>${option.label}</option>`).join('')}
-                  </select></label>
-                  <label><span>Value</span><input data-asset="${item.asset_key}" data-field="current_value" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.current_value)}"></label>
-                  <label><span>Owed Debt</span><input data-asset="${item.asset_key}" data-field="owed_debt" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(item.owed_debt)}"></label>
-                  <label><span>Target %</span><input data-asset="${item.asset_key}" data-field="target_percent" type="number" min="0" max="100" step="any" inputmode="decimal" value="${editableValue(item.target_percent)}"></label>
-                </div>
+                  <span>${money(netAssetValue(item))} net</span>
+                  <span>${pct(percent)}</span>
+                </button>
               `;
             }).join('')}
           </div>
-          <button class="add-asset-btn" type="button" data-action="add-asset">Add</button>
+          <section class="payoff-scenario">
+            <div class="section-title">
+              <strong>Real Estate Payoff Scenario</strong>
+            </div>
+            <div class="payoff-grid">
+              <label>
+                <span>Property</span>
+                <select data-payoff-field="asset_key">
+                  ${realEstateAssets.map((item) => `<option value="${item.asset_key}" ${item.asset_key === selectedPayoffAsset?.asset_key ? 'selected' : ''}>${item.asset_label}</option>`).join('')}
+                </select>
+              </label>
+              <label>
+                <span>Mortgage balance</span>
+                <input type="number" value="${editableValue(payoffBalance)}" readonly tabindex="-1">
+              </label>
+              <label>
+                <span>Interest rate</span>
+                <input data-payoff-field="interest_rate" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.interest_rate)}">
+              </label>
+              <label>
+                <span>Regular monthly payment</span>
+                <input data-payoff-field="regular_payment" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.regular_payment)}">
+              </label>
+              <label>
+                <span>Extra monthly payment</span>
+                <input data-payoff-field="extra_monthly" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.extra_monthly)}">
+              </label>
+              <label>
+                <span>Extra annual payment</span>
+                <input data-payoff-field="extra_annual" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.extra_annual)}">
+              </label>
+            </div>
+            <div class="payoff-results">
+              <div><span>Current payoff time</span><strong>${baselinePayoff.possible ? formatPayoffTime(baselinePayoff.months) : 'Increase payment'}</strong></div>
+              <div><span>With extra payments</span><strong>${acceleratedPayoff.possible ? formatPayoffTime(acceleratedPayoff.months) : 'Increase payment'}</strong></div>
+              <div><span>Time saved</span><strong>${formatPayoffTime(payoffMonthsSaved)}</strong></div>
+              <div><span>Interest saved</span><strong>${money(payoffInterestSaved)}</strong></div>
+            </div>
+            <p class="note">This scenario uses the selected real estate asset's owed debt, so it does not affect the main short-term debt readiness check.</p>
+          </section>
         </section>
 
         <section id="news" class="panel news-panel">
           <div class="section-title">
-            <span class="news-title">Wealth Builder News</span>
+            <span class="news-title">Research Center</span>
+          </div>
+          <div class="research-grid">
+            <article class="research-card cash-rates-card">
+              <span>Cash & Savings Rates</span>
+              <strong>${pct(state.budget.emergency_apy)} APY</strong>
+              <p>Your emergency fund savings account rate. Compare HYSA, CDs, and Treasury bills before moving liquid cash.</p>
+              <div>
+                <small>3-month gap</small>
+                <b>${money(savingsGap)}</b>
+              </div>
+            </article>
+            <article class="research-card insight-card">
+              <span>Asset Class Insight</span>
+              <strong>${insightAsset?.asset_label || 'Add assets'}</strong>
+              <p>${insightAsset ? `${insightClass?.group || 'Asset'} exposure is ${pct(insightPercent)} of the tracked portfolio with ${insightAsset.liquidity} liquidity.` : 'Add an asset class to generate a focused portfolio insight.'}</p>
+              <div>
+                <small>Current net</small>
+                <b>${money(insightAsset ? netAssetValue(insightAsset) : 0)}</b>
+              </div>
+            </article>
+            <article class="research-card takeaway-card">
+              <span>What This Means For You</span>
+              <strong>Research takeaway</strong>
+              <p>${researchTakeaway}</p>
+            </article>
+            <article class="research-card debt-tip-card">
+              <span>Debt Payoff Tip</span>
+              <strong>${plan.debt > 0 ? `${pct(state.budget.debt_apr)} APR` : 'Debt clear'}</strong>
+              <p>${debtTip}</p>
+              <div>
+                <small>Suggested payoff</small>
+                <b>${money(debtSnapshotPayment)}</b>
+              </div>
+            </article>
+          </div>
+          <div class="market-watchlist" aria-label="Market watchlist">
+            <div class="market-watchlist-head">
+              <strong>Market Watchlist</strong>
+            </div>
+            <div class="watchlist-marquee">
+              <div class="watchlist-track">
+                ${marketTickerItems}
+              </div>
+            </div>
+          </div>
+          <div class="news-articles-title">
+            <strong>Wealth Builder News</strong>
           </div>
           <div class="news-list">
             ${dailyNews.map((item) => `
@@ -589,6 +891,8 @@ function render() {
           Planning tool only. It does not provide personalized financial, investment, tax, or legal advice.
         </footer>
       </main>
+      ${quickEntryOverlay()}
+      ${assetEntryOverlay()}
     </div>
   `;
 
@@ -605,15 +909,57 @@ function field(label, name, type = 'number') {
 }
 
 function monthlyExpensesField(value) {
+  return readonlyBudgetField('Monthly expenses', value);
+}
+
+function readonlyBudgetField(label, value) {
   return `
     <label>
-      <span>Monthly expenses</span>
-      <input type="number" min="0" step="any" inputmode="decimal" value="${editableValue(value)}" readonly aria-readonly="true">
+      <span>${label}</span>
+      <input type="number" min="0" step="any" inputmode="decimal" value="${editableValue(value)}" readonly aria-readonly="true" tabindex="-1">
     </label>
   `;
 }
 
 function bindEvents() {
+  document.querySelector('[data-action="toggle-mobile-nav"]')?.addEventListener('click', () => {
+    mobileNavOpen = !mobileNavOpen;
+    render();
+  });
+
+  document.querySelector('[data-action="toggle-theme"]')?.addEventListener('click', () => {
+    themeMode = themeMode === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('wealth-builder-theme', themeMode);
+    applyTheme();
+    render();
+  });
+
+  document.querySelectorAll('nav a').forEach((link) => {
+    link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const target = link.getAttribute('href');
+      mobileNavOpen = false;
+      render();
+
+      window.setTimeout(() => {
+        if (!target || target === '#') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        const section = document.querySelector(target);
+        if (!section) return;
+
+        const isMobile = window.matchMedia('(max-width: 720px)').matches;
+        const styles = getComputedStyle(document.documentElement);
+        const navHeight = isMobile ? 0 : Number.parseFloat(styles.getPropertyValue('--nav-height')) || 0;
+        const anchorGap = isMobile ? 2 : Number.parseFloat(styles.getPropertyValue('--anchor-gap')) || 0;
+        const top = section.getBoundingClientRect().top + window.scrollY - navHeight - anchorGap;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }, 0);
+    });
+  });
+
   document.querySelectorAll('#budget input, #budget select').forEach((input) => {
     input.addEventListener('input', (event) => {
       const { name, value, type } = event.target;
@@ -624,99 +970,129 @@ function bindEvents() {
     input.addEventListener('change', render);
   });
 
-  document.querySelectorAll('[data-cashflow]').forEach((input) => {
-    input.addEventListener('input', (event) => {
-      const { cashflow, key } = event.target.dataset;
-      const item = state.cashflowInputs[cashflow]?.find((entry) => entry.key === key);
-      if (!item) return;
-
-      item.amount = event.target.value;
-      updateBudgetFromCashflowInputs();
-      persistLocal();
-    });
-    input.addEventListener('change', () => {
-      scheduleSave();
-      render();
-    });
-  });
-
-  document.querySelectorAll('[data-cashflow-name]').forEach((input) => {
-    input.addEventListener('input', (event) => {
-      const { cashflowName, key } = event.target.dataset;
-      const item = state.cashflowInputs[cashflowName]?.find((entry) => entry.key === key);
-      if (!item) return;
-
-      item.label = event.target.value;
-      persistLocal();
-    });
-    input.addEventListener('change', () => {
-      scheduleSave();
-    });
-  });
-
-  document.querySelectorAll('[data-cashflow-action]').forEach((select) => {
-    select.addEventListener('change', (event) => {
-      const { cashflowAction, key } = event.target.dataset;
-      if (event.target.value === 'rename') {
-        const nameInput = document.querySelector(`[data-cashflow-name="${cashflowAction}"][data-key="${key}"]`);
-        nameInput?.focus();
-        nameInput?.select();
-        event.target.value = '';
-        return;
-      }
-
-      if (event.target.value !== 'remove') return;
-
-      state.cashflowInputs[cashflowAction] = state.cashflowInputs[cashflowAction].filter((item) => item.key !== key);
-      updateBudgetFromCashflowInputs();
-      persistLocal();
-      scheduleSave();
-      render();
-    });
-  });
-
-  document.querySelectorAll('[data-action="remove-cashflow"]').forEach((button) => {
+  document.querySelectorAll('[data-action="open-quick-entry"]').forEach((button) => {
     button.addEventListener('click', (event) => {
-      const { type, key } = event.target.dataset;
-      state.cashflowInputs[type] = state.cashflowInputs[type].filter((item) => item.key !== key);
-      updateBudgetFromCashflowInputs();
-      persistLocal();
-      scheduleSave();
+      const { entryType, sourceType, key } = event.currentTarget.dataset;
+      quickEntry = {
+        entryType,
+        sourceType: sourceType || (entryType === 'income' ? 'income' : 'variable'),
+        key: key || null,
+        anchor: overlayAnchorFromElement(event.currentTarget)
+      };
+      render();
+      window.setTimeout(() => document.querySelector('[data-quick-name]')?.focus(), 0);
+    });
+  });
+
+  document.querySelectorAll('[data-action="close-quick-entry"]').forEach((element) => {
+    element.addEventListener('click', (event) => {
+      if (event.target !== event.currentTarget && event.currentTarget.classList.contains('quick-entry-layer')) return;
+      quickEntry = null;
       render();
     });
   });
 
-  document.querySelector('[data-action="remove-selected-expenses"]')?.addEventListener('click', () => {
-    const selected = [...document.querySelectorAll('[data-expense-select]:checked')].map((input) => ({
-      type: input.dataset.type,
-      key: input.dataset.key
-    }));
-    if (!selected.length) return;
+  document.querySelector('[data-action="save-quick-entry"]')?.addEventListener('click', () => {
+    if (!quickEntry) return;
 
-    selected.forEach(({ type, key }) => {
-      state.cashflowInputs[type] = state.cashflowInputs[type].filter((item) => item.key !== key);
-    });
+    const label = document.querySelector('[data-quick-name]')?.value?.trim() || 'Unnamed item';
+    const amount = document.querySelector('[data-quick-amount]')?.value ?? '';
+    const sourceType = quickEntry.sourceType || (quickEntry.entryType === 'income' ? 'income' : 'variable');
+    const group = state.cashflowInputs[sourceType];
+    const existing = group?.find((item) => item.key === quickEntry.key);
+    if (!group) return;
+
+    if (existing) {
+      existing.label = label;
+      existing.amount = amount;
+    } else {
+      group.push({ key: makeCashflowKey(sourceType), label, amount });
+    }
+
+    quickEntry = null;
     updateBudgetFromCashflowInputs();
     persistLocal();
     scheduleSave();
     render();
   });
 
-  document.querySelectorAll('[data-action="add-cashflow"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      const { type } = event.target.dataset;
-      const group = state.cashflowInputs[type];
-      if (!group) return;
+  document.querySelector('[data-action="remove-quick-entry"]')?.addEventListener('click', () => {
+    if (!quickEntry?.key) return;
 
-      group.push({
-        key: makeCashflowKey(type),
-        label: type === 'fixed' ? 'New fixed expense' : 'New variable expense',
-        amount: ''
-      });
-      persistLocal();
-      scheduleSave();
+    state.cashflowInputs[quickEntry.sourceType] = state.cashflowInputs[quickEntry.sourceType].filter((item) => item.key !== quickEntry.key);
+    quickEntry = null;
+    updateBudgetFromCashflowInputs();
+    persistLocal();
+    scheduleSave();
+    render();
+  });
+
+  document.querySelectorAll('[data-action="open-asset-entry"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const key = event.currentTarget.dataset.assetKey || null;
+      assetEntry = { assetKey: key, originalKey: key, anchor: overlayAnchorFromElement(event.currentTarget) };
+      render();
+      window.setTimeout(() => document.querySelector('[data-asset-entry-field="asset_key"]')?.focus(), 0);
+    });
+  });
+
+  document.querySelectorAll('[data-action="close-asset-entry"]').forEach((element) => {
+    element.addEventListener('click', (event) => {
+      if (event.target !== event.currentTarget && event.currentTarget.classList.contains('quick-entry-layer')) return;
+      assetEntry = null;
       render();
     });
+  });
+
+  document.querySelector('[data-asset-entry-field="asset_key"]')?.addEventListener('change', (event) => {
+    if (!assetEntry) return;
+    assetEntry.assetKey = event.target.value;
+    render();
+  });
+
+  document.querySelector('[data-action="save-asset-entry"]')?.addEventListener('click', () => {
+    if (!assetEntry) return;
+
+    const selectedKey = document.querySelector('[data-asset-entry-field="asset_key"]')?.value;
+    const allocation = state.allocations.find((item) => item.asset_key === selectedKey);
+    if (!allocation) return;
+
+    allocation.current_value = document.querySelector('[data-asset-entry-field="current_value"]')?.value ?? allocation.current_value;
+    allocation.owed_debt = document.querySelector('[data-asset-entry-field="owed_debt"]')?.value ?? allocation.owed_debt;
+    allocation.target_percent = document.querySelector('[data-asset-entry-field="target_percent"]')?.value ?? allocation.target_percent;
+
+    if (assetEntry.originalKey && assetEntry.originalKey !== selectedKey) {
+      const previousAllocation = state.allocations.find((item) => item.asset_key === assetEntry.originalKey);
+      if (previousAllocation) previousAllocation.focus_rank = null;
+      state.visibleAssetKeys = state.visibleAssetKeys.filter((key) => key !== assetEntry.originalKey);
+    }
+
+    if (!state.visibleAssetKeys.includes(selectedKey)) state.visibleAssetKeys.push(selectedKey);
+    syncVisibleAssets();
+    assetEntry = null;
+    persistLocal();
+    scheduleSave();
+    render();
+  });
+
+  document.querySelector('[data-action="remove-asset-entry"]')?.addEventListener('click', () => {
+    const key = assetEntry?.assetKey;
+    if (!key) return;
+
+    const allocation = state.allocations.find((item) => item.asset_key === key);
+    if (allocation) {
+      allocation.current_value = '';
+      allocation.owed_debt = '';
+      allocation.target_percent = 0;
+      allocation.focus_rank = null;
+    }
+
+    state.visibleAssetKeys = state.visibleAssetKeys.filter((item) => item !== key);
+    syncVisibleAssets();
+    assetEntry = null;
+    persistLocal();
+    scheduleSave();
+    render();
   });
 
   document.querySelectorAll('[data-focus-slot]').forEach((select) => {
@@ -774,6 +1150,23 @@ function bindEvents() {
     render();
   });
 
+  document.querySelectorAll('[data-payoff-field]').forEach((field) => {
+    field.addEventListener('input', (event) => {
+      const key = event.target.dataset.payoffField;
+      state.payoffScenario[key] = event.target.value;
+      persistLocal();
+      scheduleSave();
+    });
+
+    field.addEventListener('change', (event) => {
+      const key = event.target.dataset.payoffField;
+      state.payoffScenario[key] = event.target.value;
+      persistLocal();
+      scheduleSave();
+      render();
+    });
+  });
+
   document.querySelectorAll('[data-asset]').forEach((input) => {
     input.addEventListener('input', (event) => {
       const { asset, field: assetField } = event.target.dataset;
@@ -797,6 +1190,51 @@ function bindEvents() {
     });
     input.addEventListener('change', render);
   });
+
+  document.querySelectorAll('input[type="number"]:not([readonly])').forEach((input) => {
+    input.addEventListener('mousedown', handleDarkNumberStepper);
+    input.addEventListener('mousemove', handleDarkNumberStepperCursor);
+    input.addEventListener('mouseleave', () => {
+      input.style.cursor = '';
+    });
+  });
+}
+
+function handleDarkNumberStepperCursor(event) {
+  const input = event.currentTarget;
+  if (themeMode !== 'dark' || input.disabled || input.readOnly) {
+    input.style.cursor = '';
+    return;
+  }
+
+  const rect = input.getBoundingClientRect();
+  input.style.cursor = rect.right - event.clientX <= 32 ? 'pointer' : '';
+}
+
+function handleDarkNumberStepper(event) {
+  if (themeMode !== 'dark') return;
+
+  const input = event.currentTarget;
+  if (input.disabled || input.readOnly) return;
+
+  const rect = input.getBoundingClientRect();
+  const arrowZoneWidth = 32;
+  if (rect.right - event.clientX > arrowZoneWidth) return;
+
+  event.preventDefault();
+  input.focus();
+
+  const currentValue = Number(input.value) || 0;
+  const isDecimalField = String(input.value).includes('.') || input.name === 'emergency_apy';
+  const step = isDecimalField ? 0.01 : 1;
+  const direction = event.clientY < rect.top + rect.height / 2 ? 1 : -1;
+  const min = input.min === '' ? -Infinity : Number(input.min);
+  const max = input.max === '' ? Infinity : Number(input.max);
+  const nextValue = Math.min(max, Math.max(min, currentValue + direction * step));
+
+  input.value = isDecimalField ? Number(nextValue.toFixed(2)).toString() : String(Math.round(nextValue));
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function scheduleSave() {
@@ -816,7 +1254,7 @@ function syncVisibleAssets() {
 }
 
 function isEditingFormInput() {
-  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name]'));
+  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field], [data-payoff-field]'));
 }
 
 function persistLocal() {
@@ -824,6 +1262,7 @@ function persistLocal() {
     budget: state.budget,
     allocations: state.allocations,
     cashflowInputs: state.cashflowInputs,
+    payoffScenario: state.payoffScenario,
     profileId: state.profileId,
     visibleAssetKeys: state.visibleAssetKeys
   }));
@@ -837,6 +1276,7 @@ function loadLocal() {
     const parsed = JSON.parse(saved);
     state.budget = { ...state.budget, ...parsed.budget };
     state.cashflowInputs = normalizeCashflowInputs(parsed.cashflowInputs || cashflowInputsFromBudget(state.budget));
+    state.payoffScenario = { ...state.payoffScenario, ...parsed.payoffScenario };
     state.allocations = state.allocations.map((item) => ({
       ...item,
       ...(parsed.allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
@@ -849,6 +1289,10 @@ function loadLocal() {
   } catch {
     state.status = 'Local draft mode';
   }
+}
+
+function hasLocalPlan() {
+  return Boolean(localStorage.getItem('wealthbuilder-plan'));
 }
 
 async function loadSupabaseData() {
@@ -869,6 +1313,7 @@ async function loadSupabaseData() {
 
   if (profile) {
     const localVisibleAssetKeys = [...state.visibleAssetKeys];
+    const hasSavedLocalPlan = hasLocalPlan();
     state.profileId = profile.id;
     Object.keys(state.budget).forEach((key) => {
       if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
@@ -882,7 +1327,7 @@ async function loadSupabaseData() {
       .filter((item) => item.focus_rank)
       .sort((a, b) => a.focus_rank - b.focus_rank)
       .map((item) => item.asset_key);
-    state.visibleAssetKeys = localVisibleAssetKeys.length ? localVisibleAssetKeys : profileFocusAssetKeys;
+    state.visibleAssetKeys = hasSavedLocalPlan ? localVisibleAssetKeys : profileFocusAssetKeys;
     syncVisibleAssets();
     state.status = 'Synced with Supabase';
   }
@@ -969,3 +1414,33 @@ async function savePlan() {
 loadLocal();
 render();
 loadSupabaseData();
+
+window.addEventListener('scroll', () => {
+  if (dismissOpenOverlay()) return;
+
+  const isMobile = window.matchMedia('(max-width: 720px)').matches;
+  const shouldHideLogo = isMobile && window.scrollY > 12;
+
+  if (isMobile && mobileNavOpen) {
+    mobileNavOpen = false;
+    render();
+    return;
+  }
+
+  if (shouldHideLogo === mobileLogoHidden) return;
+
+  mobileLogoHidden = shouldHideLogo;
+  document.querySelector('.sidebar')?.classList.toggle('logo-hidden', mobileLogoHidden);
+}, { passive: true });
+
+function dismissOpenOverlay() {
+  if (!quickEntry && !assetEntry) return false;
+
+  quickEntry = null;
+  assetEntry = null;
+  render();
+  return true;
+}
+
+window.addEventListener('wheel', dismissOpenOverlay, { passive: true });
+window.addEventListener('touchmove', dismissOpenOverlay, { passive: true });
