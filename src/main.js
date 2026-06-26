@@ -11,9 +11,21 @@ const assetClasses = [
   { key: 'treasury_bills', label: 'Treasury bills', group: 'Cash', liquidity: 'high', color: '#1E88E5' },
   { key: 'mutual_funds', label: 'Mutual funds', group: 'Markets', liquidity: 'high', color: '#4CAF50' },
   { key: '401k', label: '401k', group: 'Retirement', liquidity: 'low', color: '#1565C0' },
+  { key: 'hsa', label: 'HSA', group: 'Health savings', liquidity: 'medium', color: '#4CAF50' },
   { key: 'cds', label: 'CDs', group: 'Cash', liquidity: 'medium', color: '#FFC107' },
   { key: 'business', label: 'Personal business', group: 'Ownership', liquidity: 'low', color: '#FB8C00' },
   { key: 'art', label: 'Art', group: 'Collectibles', liquidity: 'low', color: '#D87000' }
+];
+
+const debtTypes = [
+  { key: 'real_estate', label: 'Real estate' },
+  { key: 'student_loans', label: 'Student loans' },
+  { key: 'auto_loan', label: 'Auto loan' },
+  { key: 'credit_cards', label: 'Credit cards' },
+  { key: 'heloc', label: 'Home equity line / HELOC' },
+  { key: 'personal_loans', label: 'Personal loans' },
+  { key: 'family_friends', label: 'Family / friends' },
+  { key: 'other', label: 'Other' }
 ];
 
 const defaultBudget = {
@@ -49,12 +61,16 @@ const defaultCashflowInputs = {
   ]
 };
 
+const defaultDebtItems = [
+  { key: 'credit_card_debt', type: 'credit_cards', label: 'Credit cards', balance: 4200, apr: 12.5 }
+];
+
 const defaultAllocations = assetClasses.map((asset, index) => ({
   asset_key: asset.key,
   asset_label: asset.label,
-  current_value: [165000, 0, 0, 18500, 7200, 4800, 11000, 26000, 78000, 9000, 15000, 2500][index],
+  current_value: [165000, 0, 0, 18500, 7200, 4800, 11000, 26000, 78000, 0, 9000, 15000, 2500][index],
   owed_debt: 0,
-  target_percent: [22, 12, 4, 18, 6, 5, 8, 10, 10, 3, 2, 0][index],
+  target_percent: [22, 12, 4, 18, 6, 5, 8, 10, 10, 0, 3, 2, 0][index],
   focus_rank: ['stocks', 'treasury_bills', 'mutual_funds'].includes(asset.key)
     ? ['stocks', 'treasury_bills', 'mutual_funds'].indexOf(asset.key) + 1
     : null,
@@ -99,6 +115,7 @@ const state = {
   allocations: structuredClone(defaultAllocations),
   news: fallbackNews,
   cashflowInputs: structuredClone(defaultCashflowInputs),
+  debtItems: structuredClone(defaultDebtItems),
   payoffScenario: {
     asset_key: 'real_estate_home',
     interest_rate: 6.5,
@@ -119,6 +136,7 @@ const app = document.querySelector('#app');
 let saveTimer;
 let quickEntry = null;
 let assetEntry = null;
+let debtEntry = null;
 let mobileNavOpen = false;
 let mobileLogoHidden = false;
 let themeMode = localStorage.getItem('wealth-builder-theme') || 'light';
@@ -179,8 +197,45 @@ function makeCashflowKey(type) {
   return `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function makeDebtKey(type) {
+  return `debt_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function totalCashflowItems(group) {
   return group.reduce((sum, item) => sum + numberValue(item.amount), 0);
+}
+
+function normalizeDebtItems(items, budget = state.budget) {
+  if (Array.isArray(items)) {
+    return items.map((item, index) => ({
+      key: item.key || `debt_${index}`,
+      type: item.type || 'other',
+      label: item.label || debtTypes.find((type) => type.key === item.type)?.label || `Debt ${index + 1}`,
+      balance: editableValue(item.balance),
+      apr: editableValue(item.apr)
+    }));
+  }
+
+  if (numberValue(budget.debt_balance) <= 0) return [];
+
+  return [{
+    key: 'debt_from_budget',
+    type: 'other',
+    label: 'Debt balance',
+    balance: budget.debt_balance,
+    apr: budget.debt_apr
+  }];
+}
+
+function updateBudgetFromDebtItems() {
+  state.debtItems = normalizeDebtItems(state.debtItems);
+  const debtBalance = state.debtItems.reduce((sum, item) => sum + numberValue(item.balance), 0);
+  const weightedApr = debtBalance
+    ? state.debtItems.reduce((sum, item) => sum + (numberValue(item.balance) * numberValue(item.apr)), 0) / debtBalance
+    : 0;
+
+  state.budget.debt_balance = debtBalance;
+  state.budget.debt_apr = Math.round(weightedApr * 100) / 100;
 }
 
 function updateBudgetFromCashflowInputs() {
@@ -271,6 +326,63 @@ function payoffMonths(balance, annualRate, monthlyPayment, annualExtra = 0) {
   return { months, interest, possible: months < 1200 };
 }
 
+function calculatePayoffScenario() {
+  const payoffEligibleAssetKeys = ['real_estate_home', 'real_estate_rental'];
+  const realEstateAssets = state.allocations.filter((item) => payoffEligibleAssetKeys.includes(item.asset_key));
+  const selectedPayoffAsset = realEstateAssets.find((item) => item.asset_key === state.payoffScenario.asset_key) || realEstateAssets[0];
+  const payoffBalance = numberValue(selectedPayoffAsset?.owed_debt);
+  const payoffRate = numberValue(state.payoffScenario.interest_rate);
+  const regularPayoff = numberValue(state.payoffScenario.regular_payment);
+  const extraMonthly = numberValue(state.payoffScenario.extra_monthly);
+  const extraAnnual = numberValue(state.payoffScenario.extra_annual);
+  const extraAnnualMonthly = extraAnnual / 12;
+  const baselinePayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff, 0);
+  const acceleratedPayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff + extraMonthly + extraAnnualMonthly, 0);
+  const payoffMonthsSaved = baselinePayoff.possible && acceleratedPayoff.possible
+    ? Math.max(baselinePayoff.months - acceleratedPayoff.months, 0)
+    : 0;
+  const payoffInterestSaved = baselinePayoff.possible && acceleratedPayoff.possible
+    ? Math.max(baselinePayoff.interest - acceleratedPayoff.interest, 0)
+    : 0;
+
+  return {
+    realEstateAssets,
+    selectedPayoffAsset,
+    payoffBalance,
+    payoffRate,
+    regularPayoff,
+    extraMonthly,
+    extraAnnual,
+    baselinePayoff,
+    acceleratedPayoff,
+    payoffMonthsSaved,
+    payoffInterestSaved
+  };
+}
+
+function updatePayoffScenarioResults() {
+  const {
+    payoffBalance,
+    baselinePayoff,
+    acceleratedPayoff,
+    payoffMonthsSaved,
+    payoffInterestSaved
+  } = calculatePayoffScenario();
+
+  const payoffBalanceInput = document.querySelector('[data-payoff-balance]');
+  if (payoffBalanceInput) payoffBalanceInput.value = editableValue(payoffBalance);
+
+  const baseline = document.querySelector('[data-payoff-result="baseline"]');
+  const accelerated = document.querySelector('[data-payoff-result="accelerated"]');
+  const saved = document.querySelector('[data-payoff-result="saved"]');
+  const interest = document.querySelector('[data-payoff-result="interest"]');
+
+  if (baseline) baseline.textContent = formatPayoffStatus(baselinePayoff, payoffBalance);
+  if (accelerated) accelerated.textContent = formatPayoffStatus(acceleratedPayoff, payoffBalance);
+  if (saved) saved.textContent = formatPayoffSaved(payoffMonthsSaved);
+  if (interest) interest.textContent = money(payoffInterestSaved);
+}
+
 function formatPayoffTime(months) {
   if (!months) return 'Not available';
   const years = Math.floor(months / 12);
@@ -278,6 +390,15 @@ function formatPayoffTime(months) {
   if (!years) return `${remainingMonths} mo`;
   if (!remainingMonths) return `${years} yr`;
   return `${years} yr ${remainingMonths} mo`;
+}
+
+function formatPayoffStatus(payoff, balance) {
+  if (!numberValue(balance)) return 'Paid off';
+  return payoff.possible ? formatPayoffTime(payoff.months) : 'Increase payment';
+}
+
+function formatPayoffSaved(months) {
+  return months ? formatPayoffTime(months) : '0 mo';
 }
 
 function calculatePlan() {
@@ -421,6 +542,36 @@ function cashflowSummaryGroup(title, type, items, total) {
   `;
 }
 
+function debtSummaryGroup() {
+  const totalDebt = state.debtItems.reduce((sum, item) => sum + numberValue(item.balance), 0);
+
+  return `
+    <div class="cashflow-summary-group debt-summary-group">
+      <div class="cashflow-summary-head">
+        <div>
+          <h3>Debt</h3>
+          <strong>${money(totalDebt)}</strong>
+        </div>
+        <button class="cashflow-add-btn" type="button" data-action="open-debt-entry">
+          Add Debt
+        </button>
+      </div>
+      <div class="cashflow-list">
+        ${state.debtItems.length ? state.debtItems.map((item) => {
+          const typeLabel = debtTypes.find((type) => type.key === item.type)?.label || 'Debt';
+          return `
+            <button class="cashflow-list-item debt-list-item" type="button" data-action="open-debt-entry" data-key="${item.key}">
+              <span>${item.label || typeLabel}</span>
+              <small>${typeLabel} · ${pct(item.apr)} APR</small>
+              <strong>${money(item.balance)}</strong>
+            </button>
+          `;
+        }).join('') : `<p class="empty-note">No debt entered yet.</p>`}
+      </div>
+    </div>
+  `;
+}
+
 function getDailyNewsItems(items) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -524,9 +675,51 @@ function assetEntryOverlay() {
   `;
 }
 
+function debtEntryOverlay() {
+  if (!debtEntry) return '';
+
+  const selected = state.debtItems.find((item) => item.key === debtEntry.key);
+  const selectedType = selected?.type || 'credit_cards';
+  const title = `${selected ? 'Edit' : 'Add'} Debt`;
+
+  return `
+    <div class="quick-entry-layer" data-action="close-debt-entry">
+      <section class="quick-entry-panel" role="dialog" aria-modal="false" aria-label="${title}"${overlayPositionStyle(debtEntry.anchor)}>
+        <div class="quick-entry-title">
+          <strong>${title}</strong>
+          <button type="button" data-action="close-debt-entry" aria-label="Close debt entry">Close</button>
+        </div>
+        <label>
+          <span>Debt type</span>
+          <select data-debt-entry-field="type">
+            ${debtTypes.map((type) => `<option value="${type.key}" ${type.key === selectedType ? 'selected' : ''}>${type.label}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span>Name</span>
+          <input data-debt-entry-field="label" type="text" value="${editableValue(selected?.label)}" placeholder="Debt name">
+        </label>
+        <label>
+          <span>Balance</span>
+          <input data-debt-entry-field="balance" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(selected?.balance)}" placeholder="Balance">
+        </label>
+        <label>
+          <span>APR</span>
+          <input data-debt-entry-field="apr" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(selected?.apr)}" placeholder="APR">
+        </label>
+        <div class="quick-entry-actions">
+          <button class="cashflow-add-btn" type="button" data-action="save-debt-entry">Add</button>
+          <button class="expense-remove-btn" type="button" data-action="remove-debt-entry" ${selected ? '' : 'disabled'}>Remove</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function render() {
   ensureCashflowInputs();
   updateBudgetFromCashflowInputs();
+  updateBudgetFromDebtItems();
   const plan = calculatePlan();
   const activeAssets = activeAllocations();
   const focus = state.allocations
@@ -548,22 +741,15 @@ function render() {
   const insightAsset = focus[0] || topAssets[0];
   const insightClass = insightAsset ? assetClasses.find((asset) => asset.key === insightAsset.asset_key) : null;
   const insightPercent = insightAsset && plan.portfolioTotal ? (netAssetValue(insightAsset) / plan.portfolioTotal) * 100 : 0;
-  const payoffEligibleAssetKeys = ['real_estate_home', 'real_estate_rental'];
-  const realEstateAssets = state.allocations.filter((item) => payoffEligibleAssetKeys.includes(item.asset_key));
-  const selectedPayoffAsset = realEstateAssets.find((item) => item.asset_key === state.payoffScenario.asset_key) || realEstateAssets[0];
-  const payoffBalance = numberValue(selectedPayoffAsset?.owed_debt);
-  const payoffRate = numberValue(state.payoffScenario.interest_rate);
-  const regularPayoff = numberValue(state.payoffScenario.regular_payment);
-  const extraMonthly = numberValue(state.payoffScenario.extra_monthly);
-  const extraAnnual = numberValue(state.payoffScenario.extra_annual);
-  const baselinePayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff, 0);
-  const acceleratedPayoff = payoffMonths(payoffBalance, payoffRate, regularPayoff + extraMonthly, extraAnnual);
-  const payoffMonthsSaved = baselinePayoff.possible && acceleratedPayoff.possible
-    ? Math.max(baselinePayoff.months - acceleratedPayoff.months, 0)
-    : 0;
-  const payoffInterestSaved = baselinePayoff.possible && acceleratedPayoff.possible
-    ? Math.max(baselinePayoff.interest - acceleratedPayoff.interest, 0)
-    : 0;
+  const {
+    realEstateAssets,
+    selectedPayoffAsset,
+    payoffBalance,
+    baselinePayoff,
+    acceleratedPayoff,
+    payoffMonthsSaved,
+    payoffInterestSaved
+  } = calculatePayoffScenario();
   const savingsGap = Math.max((plan.expenses * 3) - numberValue(state.budget.emergency_current), 0);
   const debtTip = plan.debt > 0
     ? `Use the avalanche method first: send extra payoff dollars to the highest APR balance while keeping minimums current.`
@@ -647,6 +833,7 @@ function render() {
             </div>
             ${cashflowSummaryGroup('Income', 'income', incomeItems, plan.income)}
             ${cashflowSummaryGroup('Expenses', 'expense', expenseItems, plan.expenses)}
+            ${debtSummaryGroup()}
           </section>
 
           <section class="budget-column">
@@ -656,8 +843,8 @@ function render() {
               </div>
               ${readonlyBudgetField('Monthly income', plan.income)}
               ${monthlyExpensesField(plan.expenses)}
-              ${field('Debt balance', 'debt_balance')}
-              ${field('Debt APR', 'debt_apr')}
+              ${readonlyBudgetField('Debt balance', plan.debt)}
+              ${readonlyBudgetField('Debt APR', state.budget.debt_apr)}
               ${field('Emergency Fund', 'emergency_current')}
               ${field('Emergency Fund Savings Account APY', 'emergency_apy')}
               ${field('Monthly contribution', 'monthly_contribution')}
@@ -795,7 +982,7 @@ function render() {
               </label>
               <label>
                 <span>Mortgage balance</span>
-                <input type="number" value="${editableValue(payoffBalance)}" readonly tabindex="-1">
+                <input data-payoff-balance type="number" min="0" step="any" inputmode="decimal" value="${editableValue(payoffBalance)}">
               </label>
               <label>
                 <span>Interest rate</span>
@@ -815,10 +1002,10 @@ function render() {
               </label>
             </div>
             <div class="payoff-results">
-              <div><span>Current payoff time</span><strong>${baselinePayoff.possible ? formatPayoffTime(baselinePayoff.months) : 'Increase payment'}</strong></div>
-              <div><span>With extra payments</span><strong>${acceleratedPayoff.possible ? formatPayoffTime(acceleratedPayoff.months) : 'Increase payment'}</strong></div>
-              <div><span>Time saved</span><strong>${formatPayoffTime(payoffMonthsSaved)}</strong></div>
-              <div><span>Interest saved</span><strong>${money(payoffInterestSaved)}</strong></div>
+              <div><span>Current payoff time</span><strong data-payoff-result="baseline">${formatPayoffStatus(baselinePayoff, payoffBalance)}</strong></div>
+              <div><span>With extra payments</span><strong data-payoff-result="accelerated">${formatPayoffStatus(acceleratedPayoff, payoffBalance)}</strong></div>
+              <div><span>Time saved</span><strong data-payoff-result="saved">${formatPayoffSaved(payoffMonthsSaved)}</strong></div>
+              <div><span>Interest saved</span><strong data-payoff-result="interest">${money(payoffInterestSaved)}</strong></div>
             </div>
             <p class="note">This scenario uses the selected real estate asset's owed debt, so it does not affect the main short-term debt readiness check.</p>
           </section>
@@ -893,6 +1080,7 @@ function render() {
       </main>
       ${quickEntryOverlay()}
       ${assetEntryOverlay()}
+      ${debtEntryOverlay()}
     </div>
   `;
 
@@ -1027,6 +1215,62 @@ function bindEvents() {
     render();
   });
 
+  document.querySelectorAll('[data-action="open-debt-entry"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      debtEntry = {
+        key: event.currentTarget.dataset.key || null,
+        anchor: overlayAnchorFromElement(event.currentTarget)
+      };
+      render();
+      window.setTimeout(() => document.querySelector('[data-debt-entry-field="label"]')?.focus(), 0);
+    });
+  });
+
+  document.querySelectorAll('[data-action="close-debt-entry"]').forEach((element) => {
+    element.addEventListener('click', (event) => {
+      if (event.target !== event.currentTarget && event.currentTarget.classList.contains('quick-entry-layer')) return;
+      debtEntry = null;
+      render();
+    });
+  });
+
+  document.querySelector('[data-action="save-debt-entry"]')?.addEventListener('click', () => {
+    if (!debtEntry) return;
+
+    const type = document.querySelector('[data-debt-entry-field="type"]')?.value || 'other';
+    const typeLabel = debtTypes.find((item) => item.key === type)?.label || 'Debt';
+    const label = document.querySelector('[data-debt-entry-field="label"]')?.value?.trim() || typeLabel;
+    const balance = document.querySelector('[data-debt-entry-field="balance"]')?.value ?? '';
+    const apr = document.querySelector('[data-debt-entry-field="apr"]')?.value ?? '';
+    const existing = state.debtItems.find((item) => item.key === debtEntry.key);
+
+    if (existing) {
+      existing.type = type;
+      existing.label = label;
+      existing.balance = balance;
+      existing.apr = apr;
+    } else {
+      state.debtItems.push({ key: makeDebtKey(type), type, label, balance, apr });
+    }
+
+    debtEntry = null;
+    updateBudgetFromDebtItems();
+    persistLocal();
+    scheduleSave();
+    render();
+  });
+
+  document.querySelector('[data-action="remove-debt-entry"]')?.addEventListener('click', () => {
+    if (!debtEntry?.key) return;
+
+    state.debtItems = state.debtItems.filter((item) => item.key !== debtEntry.key);
+    debtEntry = null;
+    updateBudgetFromDebtItems();
+    persistLocal();
+    scheduleSave();
+    render();
+  });
+
   document.querySelectorAll('[data-action="open-asset-entry"]').forEach((button) => {
     button.addEventListener('click', (event) => {
       const key = event.currentTarget.dataset.assetKey || null;
@@ -1155,6 +1399,7 @@ function bindEvents() {
       const key = event.target.dataset.payoffField;
       state.payoffScenario[key] = event.target.value;
       persistLocal();
+      updatePayoffScenarioResults();
       scheduleSave();
     });
 
@@ -1163,8 +1408,28 @@ function bindEvents() {
       state.payoffScenario[key] = event.target.value;
       persistLocal();
       scheduleSave();
-      render();
+      if (key === 'asset_key') {
+        render();
+      } else {
+        updatePayoffScenarioResults();
+      }
     });
+  });
+
+  document.querySelector('[data-payoff-balance]')?.addEventListener('input', (event) => {
+    const selectedAsset = state.allocations.find((item) => item.asset_key === state.payoffScenario.asset_key)
+      || state.allocations.find((item) => ['real_estate_home', 'real_estate_rental'].includes(item.asset_key));
+
+    if (!selectedAsset) return;
+
+    selectedAsset.owed_debt = event.target.value;
+    persistLocal();
+    updatePayoffScenarioResults();
+    scheduleSave();
+  });
+
+  document.querySelector('[data-payoff-balance]')?.addEventListener('change', () => {
+    render();
   });
 
   document.querySelectorAll('[data-asset]').forEach((input) => {
@@ -1254,7 +1519,7 @@ function syncVisibleAssets() {
 }
 
 function isEditingFormInput() {
-  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field], [data-payoff-field]'));
+  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field], [data-debt-entry-field], [data-payoff-field], [data-payoff-balance]'));
 }
 
 function persistLocal() {
@@ -1262,6 +1527,7 @@ function persistLocal() {
     budget: state.budget,
     allocations: state.allocations,
     cashflowInputs: state.cashflowInputs,
+    debtItems: state.debtItems,
     payoffScenario: state.payoffScenario,
     profileId: state.profileId,
     visibleAssetKeys: state.visibleAssetKeys
@@ -1276,6 +1542,7 @@ function loadLocal() {
     const parsed = JSON.parse(saved);
     state.budget = { ...state.budget, ...parsed.budget };
     state.cashflowInputs = normalizeCashflowInputs(parsed.cashflowInputs || cashflowInputsFromBudget(state.budget));
+    state.debtItems = normalizeDebtItems(parsed.debtItems, state.budget);
     state.payoffScenario = { ...state.payoffScenario, ...parsed.payoffScenario };
     state.allocations = state.allocations.map((item) => ({
       ...item,
@@ -1318,6 +1585,7 @@ async function loadSupabaseData() {
     Object.keys(state.budget).forEach((key) => {
       if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
     });
+    if (!hasSavedLocalPlan) state.debtItems = normalizeDebtItems(null, state.budget);
 
     state.allocations = state.allocations.map((item) => ({
       ...item,
@@ -1434,10 +1702,11 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
 function dismissOpenOverlay() {
-  if (!quickEntry && !assetEntry) return false;
+  if (!quickEntry && !assetEntry && !debtEntry) return false;
 
   quickEntry = null;
   assetEntry = null;
+  debtEntry = null;
   render();
   return true;
 }
