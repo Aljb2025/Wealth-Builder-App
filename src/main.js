@@ -415,14 +415,16 @@ function calculatePlan() {
   const portfolioTotal = activeAssets.reduce((sum, item) => sum + netAssetValue(item), 0);
   const readiness = {
     cashflow: cashflow > 0,
-    debt: debt < 5000,
+    debt: debt <= 0,
     emergency: emergencyMonths >= 3
   };
   const investReady = readiness.cashflow && readiness.debt && readiness.emergency;
 
-  const emergencyContribution = Math.min(contribution, Math.max(cashflow, 0));
-  const debtContribution = 0;
-  const investContribution = Math.max(cashflow - emergencyContribution - debtContribution, 0);
+  const availableCashflow = Math.max(cashflow, 0);
+  const emergencyGap = Math.max((monthlyNeed * 3) - emergencyCurrent, 0);
+  const emergencyContribution = readiness.emergency ? 0 : Math.min(contribution || availableCashflow, availableCashflow, emergencyGap);
+  const debtContribution = readiness.emergency && debt > 0 ? Math.min(availableCashflow, debt) : 0;
+  const investContribution = investReady ? availableCashflow : 0;
 
   return {
     income,
@@ -481,22 +483,22 @@ function nextBestMove(plan) {
     };
   }
 
-  if (!plan.readiness.debt) {
-    return {
-      title: 'Pay debt below $5,000',
-      detail: 'Route extra cash toward debt first so future dollars can move into savings and investments faster.',
-      metric: money(Math.max(plan.debt - 5000, 0)),
-      label: 'above threshold'
-    };
-  }
-
   if (!plan.readiness.emergency) {
     const target = plan.monthlyNeed * 3;
     return {
       title: 'Build the 3-month emergency fund',
-      detail: 'Keep cash liquid while building the base emergency fund before prioritizing new investing dollars.',
+      detail: 'Keep cash liquid while building the base emergency fund before prioritizing debt payoff or investing.',
       metric: money(Math.max(target - numberValue(state.budget.emergency_current), 0)),
       label: 'needed for 3 months'
+    };
+  }
+
+  if (!plan.readiness.debt) {
+    return {
+      title: 'Pay off remaining debt',
+      detail: 'Your 3-month emergency fund is funded, so the next step is clearing debt before sending new money to selected assets.',
+      metric: money(plan.debt),
+      label: 'remaining debt'
     };
   }
 
@@ -734,7 +736,7 @@ function render() {
   const debtPercent = Math.max(0, Math.min(100, 100 - (plan.debt / Math.max(plan.income * 2, 1)) * 100));
   const dailyNews = getDailyNewsItems(state.news);
   const move = nextBestMove(plan);
-  const debtSnapshotPayment = Math.max(plan.debtContribution || Math.min(Math.max(plan.cashflow, 0), plan.debt), 0);
+  const debtSnapshotPayment = Math.max(plan.debtContribution, 0);
   const debtSnapshotMonths = debtSnapshotPayment > 0 && plan.debt > 0 ? Math.ceil(plan.debt / debtSnapshotPayment) : 0;
   const incomeItems = cashflowItems('income');
   const expenseItems = cashflowItems('expense');
@@ -815,7 +817,7 @@ function render() {
               <div class="bar mint"><i style="width:${emergencyPercent}%"></i></div>
             </article>
             <article class="metric-card">
-              <span>Debt threshold</span>
+              <span>Debt balance</span>
               <strong>${money(plan.debt)}</strong>
               <div class="bar coral"><i style="width:${debtPercent}%"></i></div>
             </article>
@@ -895,15 +897,15 @@ function render() {
                   <strong>${pct(state.budget.debt_apr)}</strong>
                 </div>
                 <div>
-                  <span>Suggested payoff</span>
+                  <span>Monthly cashflow toward payoff</span>
                   <strong>${money(debtSnapshotPayment)}</strong>
                 </div>
                 <div>
                   <span>Estimated payoff</span>
-                  <strong>${debtSnapshotMonths ? `${debtSnapshotMonths} mo` : 'Ready'}</strong>
+                  <strong>${plan.debt > 0 && debtSnapshotMonths ? `${debtSnapshotMonths} mo` : 'Ready'}</strong>
                 </div>
               </div>
-              <p class="note">${plan.debt > 0 ? 'Paying down debt below $5,000 unlocks more of the plan for investing.' : 'Debt is clear, so available dollars can move toward savings and investing.'}</p>
+              <p class="note">${plan.debt > 0 ? 'After the 3-month emergency fund is complete, available cashflow routes to debt before investing.' : 'Debt is clear, so available dollars can move toward selected assets.'}</p>
             </section>
           </div>
           <section id="readiness" class="panel readiness-panel">
@@ -912,7 +914,7 @@ function render() {
             </div>
             <div class="gates">
               ${readinessItem('Cashflow positive', plan.readiness.cashflow, `${money(plan.cashflow)} after expenses`)}
-              ${readinessItem('Debt under $5,000', plan.readiness.debt, `${money(plan.debt)} current balance`)}
+              ${readinessItem('Debt paid off', plan.readiness.debt, `${money(plan.debt)} current balance`)}
               ${readinessItem('3 months saved', plan.readiness.emergency, `${plan.emergencyMonths.toFixed(1)} months in liquid savings`)}
             </div>
             <div class="split-plan">
@@ -1044,7 +1046,7 @@ function render() {
               <strong>${plan.debt > 0 ? `${pct(state.budget.debt_apr)} APR` : 'Debt clear'}</strong>
               <p>${debtTip}</p>
               <div>
-                <small>Suggested payoff</small>
+                <small>Monthly cashflow toward payoff</small>
                 <b>${money(debtSnapshotPayment)}</b>
               </div>
             </article>
