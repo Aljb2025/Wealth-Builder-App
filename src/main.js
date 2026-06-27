@@ -1602,6 +1602,16 @@ async function loadSupabaseData() {
     state.status = 'Synced with Supabase';
   }
 
+  const { data: liveNews } = await supabase.functions.invoke('marketaux-news', {
+    method: 'GET'
+  });
+
+  if (liveNews?.articles?.length) {
+    state.news = mergeNewsItems(liveNews.articles, fallbackNews);
+    render();
+    return;
+  }
+
   const { data: news } = await supabase
     .from('news_items')
     .select('title, source, url, published_at, summary')

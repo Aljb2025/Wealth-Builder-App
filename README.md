@@ -35,8 +35,25 @@ A Vite web app for budget readiness, debt payoff, emergency fund tiers, asset fo
 2. Open the SQL Editor.
 3. Run `supabase/schema.sql`.
 4. Use the public publishable key in `VITE_SUPABASE_PUBLISHABLE_KEY`. Do not use a service role key in Vite or any browser-exposed variable.
+5. Deploy the `supabase/functions/marketaux-news` Edge Function if you want live Marketaux headlines.
+6. Add the Marketaux token as a Supabase Edge Function secret named `MARKETAUX_API_TOKEN`.
 
 The schema enables Row Level Security for every public table and uses anonymous session IDs so the first version can work without requiring user accounts. When you add Supabase Auth, replace the session policies with `auth.uid()` ownership policies.
+
+### Marketaux News Fetcher
+
+The browser never receives the Marketaux token. The app calls the Supabase Edge Function `marketaux-news`; that function calls Marketaux, limits the response to three articles, stores the articles in `public.news_items`, and returns them to the app.
+
+Set the secret in Supabase Dashboard:
+
+1. Open your Supabase project.
+2. Go to `Edge Functions`.
+3. Open `Secrets`.
+4. Add `MARKETAUX_API_TOKEN`.
+5. Paste your Marketaux API token.
+6. Deploy the function from `supabase/functions/marketaux-news`.
+
+If the Edge Function is not deployed yet, the app falls back to `public.news_items`, then to local sample headlines.
 
 ## Vercel Deployment
 
@@ -55,7 +72,7 @@ Vite only exposes environment variables prefixed with `VITE_` to browser code. K
 
 ## Current Product Notes
 
-- The app gates asset focus selection behind three readiness checks: positive monthly cashflow, debt under `$5,000`, and at least three months of emergency savings.
+- The app prioritizes positive monthly cashflow, a 3-month emergency fund, debt payoff, then selected asset investing.
 - Emergency fund contributions step down as the user approaches six months and one year of savings.
-- News is limited to three research cards and is intentionally separated from recommendations.
+- News is limited to three research cards and can be refreshed through the Supabase Marketaux Edge Function.
 - This is planning software, not financial advice.
