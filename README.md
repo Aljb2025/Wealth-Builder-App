@@ -42,7 +42,7 @@ The schema enables Row Level Security for every public table and uses anonymous 
 
 ### Marketaux News Fetcher
 
-The browser never receives the Marketaux token. The app calls the Supabase Edge Function `marketaux-news`; that function calls Marketaux, limits the response to three articles, stores the articles in `public.news_items`, and returns them to the app.
+The browser never receives the Marketaux token. The app calls the Supabase Edge Function `marketaux-news`; that function checks `public.news_items` first and only calls Marketaux when today's cached articles are missing. It limits the response to three articles, stores the articles in `public.news_items`, and returns them to the app.
 
 Set the secret in Supabase Dashboard:
 
@@ -54,6 +54,12 @@ Set the secret in Supabase Dashboard:
 6. Deploy the function from `supabase/functions/marketaux-news`.
 
 If the Edge Function is not deployed yet, the app falls back to `public.news_items`, then to local sample headlines.
+
+To test the daily cache:
+
+- First request should return `"cached": false` when it calls Marketaux.
+- A second request on the same day should return `"cached": true` and should not use another Marketaux API call.
+- Add `?force_refresh=true` to the function test URL only when you intentionally want to fetch fresh Marketaux articles again.
 
 ## Vercel Deployment
 
