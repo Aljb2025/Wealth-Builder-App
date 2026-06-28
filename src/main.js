@@ -276,6 +276,39 @@ function normalizeCashflowInputs(inputs) {
   };
 }
 
+function sortLineItems(items = []) {
+  return [...items].sort((a, b) => {
+    const orderA = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : 0;
+    const orderB = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : 0;
+    return orderA - orderB;
+  });
+}
+
+function cashflowInputsFromProfile(profile) {
+  const incomeItems = sortLineItems(profile?.income_items || []);
+  const expenseItems = sortLineItems(profile?.expense_items || []);
+  const fixedItems = expenseItems.filter((item) => item.source_type !== 'variable');
+  const variableItems = expenseItems.filter((item) => item.source_type === 'variable');
+
+  return normalizeCashflowInputs({
+    income: incomeItems.map((item, index) => ({
+      key: item.key || `income_${index}`,
+      label: item.label,
+      amount: editableValue(item.amount)
+    })),
+    fixed: fixedItems.map((item, index) => ({
+      key: item.key || `fixed_${index}`,
+      label: item.label,
+      amount: editableValue(item.amount)
+    })),
+    variable: variableItems.map((item, index) => ({
+      key: item.key || `variable_${index}`,
+      label: item.label,
+      amount: editableValue(item.amount)
+    }))
+  });
+}
+
 function cashflowInputsFromBudget(budget) {
   const inputs = structuredClone(defaultCashflowInputs);
   inputs.income[0].amount = budget.monthly_income;
@@ -1642,7 +1675,7 @@ async function loadSupabaseData() {
   const sessionId = getSessionId();
   const { data: profile, error } = await supabase
     .from('wealth_profiles')
-    .select('*, asset_allocations(*), debt_items(*)')
+    .select('*, asset_allocations(*), debt_items(*), income_items(*), expense_items(*)')
     .eq('session_id', sessionId)
     .maybeSingle();
 
@@ -1660,6 +1693,10 @@ async function loadSupabaseData() {
       if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
     });
     if (!hasSavedLocalPlan) {
+      const hasRemoteCashflowItems = Boolean(profile.income_items?.length || profile.expense_items?.length);
+      state.cashflowInputs = hasRemoteCashflowItems
+        ? cashflowInputsFromProfile(profile)
+        : cashflowInputsFromBudget(state.budget);
       state.debtItems = profile.debt_items?.length
         ? normalizeDebtItems(profile.debt_items, state.budget)
         : normalizeDebtItems(null, state.budget);
@@ -1699,6 +1736,9 @@ async function loadSupabaseData() {
 }
 
 async function savePlan() {
+  ensureCashflowInputs();
+  updateBudgetFromCashflowInputs();
+  updateBudgetFromDebtItems();
   persistLocal();
 
   if (!supabase) {
@@ -1787,6 +1827,60 @@ async function savePlan() {
   }
 
   if (debtError) state.status = 'Debt sync failed';
+
+  const incomePayload = state.cashflowInputs.income.map((item, index) => ({
+    profile_id: profile.id,
+    key: item.key,
+    label: item.label || 'Income',
+    amount: numberValue(item.amount),
+    sort_order: index,
+    updated_at: new Date().toISOString()
+  }));
+  const expensePayload = [
+    ...state.cashflowInputs.fixed.map((item, index) => ({
+      profile_id: profile.id,
+      key: item.key,
+      source_type: 'fixed',
+      label: item.label || 'Expense',
+      amount: numberValue(item.amount),
+      sort_order: index,
+      updated_at: new Date().toISOString()
+    })),
+    ...state.cashflowInputs.variable.map((item, index) => ({
+      profile_id: profile.id,
+      key: item.key,
+      source_type: 'variable',
+      label: item.label || 'Expense',
+      amount: numberValue(item.amount),
+      sort_order: state.cashflowInputs.fixed.length + index,
+      updated_at: new Date().toISOString()
+    }))
+  ];
+
+  const deleteIncomeResult = await supabase
+    .from('income_items')
+    .delete()
+    .eq('profile_id', profile.id);
+  const deleteExpenseResult = await supabase
+    .from('expense_items')
+    .delete()
+    .eq('profile_id', profile.id);
+
+  let cashflowError = deleteIncomeResult.error || deleteExpenseResult.error;
+  if (!cashflowError && incomePayload.length) {
+    const incomeResult = await supabase
+      .from('income_items')
+      .insert(incomePayload);
+    cashflowError = incomeResult.error;
+  }
+  if (!cashflowError && expensePayload.length) {
+    const expenseResult = await supabase
+      .from('expense_items')
+      .insert(expensePayload);
+    cashflowError = expenseResult.error;
+  }
+
+  if (cashflowError) state.status = 'Cashflow sync failed';
 
   state.saving = false;
   persistLocal();
