@@ -534,7 +534,16 @@ small {
 
 .debt-list-item strong {
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 1;
+}
+
+.debt-list-item em {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  text-align: right;
 }
 
 .empty-note {

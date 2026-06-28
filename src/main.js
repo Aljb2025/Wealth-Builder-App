@@ -62,7 +62,7 @@ const defaultCashflowInputs = {
 };
 
 const defaultDebtItems = [
-  { key: 'credit_card_debt', type: 'credit_cards', label: 'Credit cards', balance: 4200, apr: 12.5 }
+  { key: 'credit_card_debt', type: 'credit_cards', label: 'Credit cards', balance: 4200, apr: 12.5, min_payment: 125 }
 ];
 
 const defaultAllocations = assetClasses.map((asset, index) => ({
@@ -212,7 +212,8 @@ function normalizeDebtItems(items, budget = state.budget) {
       type: item.type || 'other',
       label: item.label || debtTypes.find((type) => type.key === item.type)?.label || `Debt ${index + 1}`,
       balance: editableValue(item.balance),
-      apr: editableValue(item.apr)
+      apr: editableValue(item.apr),
+      min_payment: editableValue(item.min_payment ?? item.minimum_payment)
     }));
   }
 
@@ -223,7 +224,8 @@ function normalizeDebtItems(items, budget = state.budget) {
     type: 'other',
     label: 'Debt balance',
     balance: budget.debt_balance,
-    apr: budget.debt_apr
+    apr: budget.debt_apr,
+    min_payment: 0
   }];
 }
 
@@ -382,19 +384,21 @@ function calculateDtiSnapshot(plan) {
   const { selectedPayoffAsset } = calculatePayoffScenario();
   const grossIncome = Math.max(plan.income, 0);
   const housingPayment = Math.max(numberValue(state.payoffScenario.regular_payment), 0);
-  const currentDebtPayment = Math.max(plan.debtContribution, 0);
+  const minimumDebtPayments = state.debtItems.reduce((sum, item) => sum + numberValue(item.min_payment), 0);
   const frontEndDti = grossIncome ? (housingPayment / grossIncome) * 100 : 0;
-  const backEndDti = grossIncome ? ((housingPayment + currentDebtPayment) / grossIncome) * 100 : 0;
-  const maxHousingAt28 = Math.max((grossIncome * 0.28) - currentDebtPayment, 0);
+  const backEndDti = grossIncome ? ((housingPayment + minimumDebtPayments) / grossIncome) * 100 : 0;
+  const maxHousingAt28 = grossIncome * 0.28;
+  const maxAllDebtAt36 = Math.max((grossIncome * 0.36) - minimumDebtPayments, 0);
 
   return {
     selectedAssetLabel: selectedPayoffAsset?.asset_label || 'Selected property',
     grossIncome,
     housingPayment,
-    currentDebtPayment,
+    minimumDebtPayments,
     frontEndDti,
     backEndDti,
-    maxHousingAt28
+    maxHousingAt28,
+    maxAllDebtAt36
   };
 }
 
@@ -606,6 +610,7 @@ function debtSummaryGroup() {
               <span>${item.label || typeLabel}</span>
               <small>${typeLabel} · ${pct(item.apr)} APR</small>
               <strong>${money(item.balance)}</strong>
+              <em>${money(item.min_payment)} min/mo</em>
             </button>
           `;
         }).join('') : `<p class="empty-note">No debt entered yet.</p>`}
@@ -748,6 +753,10 @@ function debtEntryOverlay() {
         <label>
           <span>APR</span>
           <input data-debt-entry-field="apr" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(selected?.apr)}" placeholder="APR">
+        </label>
+        <label>
+          <span>Minimum monthly payment</span>
+          <input data-debt-entry-field="min_payment" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(selected?.min_payment)}" placeholder="Minimum payment">
         </label>
         <div class="quick-entry-actions">
           <button class="cashflow-add-btn" type="button" data-action="save-debt-entry">Add</button>
@@ -1062,12 +1071,13 @@ function render() {
               <ul>
                 <li><span>Gross monthly income</span><strong>${money(dti.grossIncome)}</strong></li>
                 <li><span>Estimated ${dti.selectedAssetLabel} payment</span><strong>${money(dti.housingPayment)}</strong></li>
-                <li><span>Current monthly debt payoff</span><strong>${money(dti.currentDebtPayment)}</strong></li>
+                <li><span>Required monthly debt payments</span><strong>${money(dti.minimumDebtPayments)}</strong></li>
                 <li><span>Front-end DTI</span><strong>${pct(dti.frontEndDti)}</strong></li>
                 <li><span>Back-end DTI estimate</span><strong>${pct(dti.backEndDti)}</strong></li>
-                <li><span>28% housing room after debt payoff</span><strong>${money(dti.maxHousingAt28)}</strong></li>
+                <li><span>28% front-end housing guideline</span><strong>${money(dti.maxHousingAt28)}</strong></li>
+                <li><span>36% back-end room after debt</span><strong>${money(dti.maxAllDebtAt36)}</strong></li>
               </ul>
-              <p class="note">This is a planning estimate. A lender will use gross income, required minimum debt payments, taxes, insurance, HOA, and loan program rules.</p>
+              <p class="note">This is a planning estimate. A lender will use gross income, required minimum debt payments, taxes, insurance, HOA, credit profile, and loan program rules.</p>
             </div>
             <p class="note">This scenario uses the selected real estate asset's owed debt, so it does not affect the main short-term debt readiness check.</p>
           </section>
@@ -1304,6 +1314,7 @@ function bindEvents() {
     const label = document.querySelector('[data-debt-entry-field="label"]')?.value?.trim() || typeLabel;
     const balance = document.querySelector('[data-debt-entry-field="balance"]')?.value ?? '';
     const apr = document.querySelector('[data-debt-entry-field="apr"]')?.value ?? '';
+    const minPayment = document.querySelector('[data-debt-entry-field="min_payment"]')?.value ?? '';
     const existing = state.debtItems.find((item) => item.key === debtEntry.key);
 
     if (existing) {
@@ -1311,8 +1322,9 @@ function bindEvents() {
       existing.label = label;
       existing.balance = balance;
       existing.apr = apr;
+      existing.min_payment = minPayment;
     } else {
-      state.debtItems.push({ key: makeDebtKey(type), type, label, balance, apr });
+      state.debtItems.push({ key: makeDebtKey(type), type, label, balance, apr, min_payment: minPayment });
     }
 
     debtEntry = null;
