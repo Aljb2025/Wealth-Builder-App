@@ -413,6 +413,46 @@ function emergencyTier(months, monthlyNeed, current) {
   };
 }
 
+function priorityStage(readiness, debt, emergencyTierInfo) {
+  if (!readiness.cashflow) {
+    return {
+      key: 'cashflow',
+      label: 'Cashflow first',
+      status: 'Increase monthly cashflow'
+    };
+  }
+
+  if (!readiness.emergency) {
+    return {
+      key: 'emergency-base',
+      label: 'Emergency base',
+      status: 'Build the 3-month emergency base'
+    };
+  }
+
+  if (debt > 0) {
+    return {
+      key: 'debt-payoff',
+      label: 'Debt payoff',
+      status: 'Pay off debt before investing'
+    };
+  }
+
+  if (emergencyTierInfo.gap > 0) {
+    return {
+      key: 'emergency-reserve',
+      label: emergencyTierInfo.label,
+      status: emergencyTierInfo.status
+    };
+  }
+
+  return {
+    key: 'invest',
+    label: 'Investing',
+    status: 'Ready to invest in selected assets'
+  };
+}
+
 function calculateDtiSnapshot(plan) {
   const { selectedPayoffAsset } = calculatePayoffScenario();
   const grossIncome = Math.max(plan.income, 0);
@@ -493,14 +533,17 @@ function calculatePlan() {
     debt: debt <= 0,
     emergency: emergencyMonths >= 3
   };
-  const investReady = readiness.cashflow && readiness.debt && readiness.emergency;
-
   const availableCashflow = Math.max(cashflow, 0);
   const emergencyTierInfo = emergencyTier(emergencyMonths, monthlyNeed, emergencyCurrent);
+  const stage = priorityStage(readiness, debt, emergencyTierInfo);
+  const investReady = stage.key === 'invest' || stage.key === 'emergency-reserve';
   const emergencyMax = contribution ? Math.min(contribution, availableCashflow) : availableCashflow;
-  const emergencyContribution = Math.min(emergencyTierInfo.gap, emergencyMax, availableCashflow * emergencyTierInfo.rate);
+  const shouldFundEmergency = stage.key === 'emergency-base' || stage.key === 'emergency-reserve';
+  const emergencyContribution = shouldFundEmergency
+    ? Math.min(emergencyTierInfo.gap, emergencyMax, availableCashflow * emergencyTierInfo.rate)
+    : 0;
   const cashflowAfterEmergency = Math.max(availableCashflow - emergencyContribution, 0);
-  const debtContribution = readiness.emergency && debt > 0 ? Math.min(cashflowAfterEmergency, debt) : 0;
+  const debtContribution = stage.key === 'debt-payoff' ? Math.min(cashflowAfterEmergency, debt) : 0;
   const investContribution = investReady ? cashflowAfterEmergency : 0;
 
   return {
@@ -515,6 +558,7 @@ function calculatePlan() {
     portfolioTotal,
     readiness,
     investReady,
+    priorityStage: stage,
     emergencyTier: emergencyTierInfo,
     emergencyContribution,
     debtContribution,
@@ -555,7 +599,7 @@ function nextBestMove(plan) {
   if (!plan.readiness.cashflow) {
     return {
       title: 'Increase monthly cashflow',
-      detail: 'Reduce expenses or add income until money is left after expenses and fun fund.',
+      detail: 'Reduce expenses or add income until money is left after monthly expenses.',
       metric: money(Math.abs(plan.cashflow)),
       label: 'gap to cover'
     };
@@ -572,16 +616,25 @@ function nextBestMove(plan) {
 
   if (!plan.readiness.debt) {
     return {
-      title: 'Pay off remaining debt',
-      detail: 'Your 3-month emergency fund is funded, so the next step is clearing debt before sending new money to selected assets.',
+      title: 'Pay down debt',
+      detail: 'Your 3-month emergency fund is funded. Route available monthly cashflow toward debt before investing.',
       metric: money(plan.debt),
       label: 'remaining debt'
     };
   }
 
+  if (plan.priorityStage.key === 'emergency-reserve') {
+    return {
+      title: 'Strengthen emergency reserves',
+      detail: 'Debt is clear. Keep a smaller emergency allocation going while the remaining cashflow can move toward selected assets.',
+      metric: money(plan.emergencyTier.gap),
+      label: `${plan.emergencyTier.label} gap`
+    };
+  }
+
   return {
     title: 'Invest toward your selected assets',
-    detail: 'The core readiness checks are passing, so new dollars can focus on the asset classes you picked.',
+    detail: 'Cashflow is positive, the 3-month base is funded, debt is paid off, and the emergency reserve is fully funded.',
     metric: money(plan.investContribution),
     label: 'monthly investing'
   };
@@ -988,7 +1041,7 @@ function render() {
                   <strong>${plan.debt > 0 && debtSnapshotMonths ? `${debtSnapshotMonths} mo` : 'Ready'}</strong>
                 </div>
               </div>
-              <p class="note">${plan.debt > 0 ? 'After the 3-month emergency fund is complete, available cashflow routes to debt before investing.' : 'Debt is clear, so available dollars can move toward selected assets.'}</p>
+              <p class="note">${plan.debt > 0 ? 'Debt payoff starts after the 3-month emergency base is funded. Until then, available cashflow stays focused on liquid savings.' : 'Debt is clear, so available dollars can move toward reserve tiers and selected assets.'}</p>
             </section>
           </div>
           <section id="readiness" class="panel readiness-panel">
@@ -996,21 +1049,22 @@ function render() {
               <strong>Financial Health</strong>
             </div>
             <div class="gates">
-              ${readinessItem('Cashflow positive', plan.readiness.cashflow, `${money(plan.cashflow)} after expenses`)}
+              ${readinessItem('Positive monthly cashflow', plan.readiness.cashflow, `${money(plan.cashflow)} after expenses`)}
+              ${readinessItem('3-month emergency base', plan.readiness.emergency, `${plan.emergencyMonths.toFixed(1)} months in liquid savings`)}
               ${readinessItem('Debt paid off', plan.readiness.debt, `${money(plan.debt)} current balance`)}
-              ${readinessItem('3 months saved', plan.readiness.emergency, `${plan.emergencyMonths.toFixed(1)} months in liquid savings`)}
+              ${readinessItem('Longer reserve tier', plan.emergencyTier.gap <= 0, `${plan.emergencyTier.label}: ${money(plan.emergencyTier.gap)} gap`)}
             </div>
             <div class="split-plan">
               <div>
-                <span>Emergency Fund Monthly Allocation</span>
+                <span>Emergency Reserve Allocation</span>
                 <strong>${money(plan.emergencyContribution)}</strong>
               </div>
               <div>
-                <span>Debt Payoff</span>
+                <span>Monthly Debt Payoff</span>
                 <strong>${money(plan.debtContribution)}</strong>
               </div>
               <div>
-                <span>Monthly Investing Amount</span>
+                <span>Monthly Investing</span>
                 <strong>${money(plan.investContribution)}</strong>
               </div>
             </div>
@@ -1021,11 +1075,11 @@ function render() {
               <i style="width:${emergencyPercent}%"></i>
             </div>
             <div class="tier-summary">
-              <strong>${plan.emergencyTier.status}</strong>
+              <strong>${plan.priorityStage.status}</strong>
               <span>${plan.emergencyTier.label} target: ${money(plan.emergencyTier.targetAmount)}</span>
               <span>Current gap: ${money(plan.emergencyTier.gap)}</span>
             </div>
-            <p class="note">Emergency contributions now step down by tier: 100% of available emergency allocation until 3 months, 25% from 3 to 6 months, 10% from 6 to 12 months, and 0% after 12 months.</p>
+            <p class="note">Priority order: positive cashflow, 3-month emergency base, debt payoff, then 6-month and 12-month reserve tiers with smaller savings allocations.</p>
           </section>
         </section>
 
@@ -1102,7 +1156,7 @@ function render() {
                 <strong>Loan Readiness / DTI Snapshot</strong>
               </div>
               <ul>
-                <li><span>Gross monthly income</span><strong>${money(dti.grossIncome)}</strong></li>
+                <li><span>Income used for DTI</span><strong>${money(dti.grossIncome)}</strong></li>
                 <li><span>Estimated ${dti.selectedAssetLabel} payment</span><strong>${money(dti.housingPayment)}</strong></li>
                 <li><span>Required monthly debt payments</span><strong>${money(dti.minimumDebtPayments)}</strong></li>
                 <li><span>Front-end DTI</span><strong>${pct(dti.frontEndDti)}</strong></li>
@@ -1110,7 +1164,11 @@ function render() {
                 <li><span>28% front-end housing guideline</span><strong>${money(dti.maxHousingAt28)}</strong></li>
                 <li><span>36% back-end room after debt</span><strong>${money(dti.maxAllDebtAt36)}</strong></li>
               </ul>
-              <p class="note">This is a planning estimate. A lender will use gross income, required minimum debt payments, taxes, insurance, HOA, credit profile, and loan program rules.</p>
+              <div class="dti-guidelines">
+                <p><strong>Front-end DTI:</strong> housing payment divided by income. A common target is 28% or lower.</p>
+                <p><strong>Back-end DTI:</strong> housing payment plus required monthly debt payments divided by income. A common target is 36% or lower.</p>
+                <p><strong>Planning note:</strong> use gross income here for lender-style DTI. If your income entry is take-home pay, this estimate is conservative.</p>
+              </div>
             </div>
             <p class="note">This scenario uses the selected real estate asset's owed debt, so it does not affect the main short-term debt readiness check.</p>
           </section>
