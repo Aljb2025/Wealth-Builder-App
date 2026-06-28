@@ -869,7 +869,7 @@ function render() {
             <article class="metric-card">
               <span>Debt balance</span>
               <strong>${money(plan.debt)}</strong>
-              <div class="bar coral"><i style="width:${debtPercent}%"></i></div>
+              <div class="bar orange"><i style="width:${debtPercent}%"></i></div>
             </article>
             <article class="metric-card">
               <span>Portfolio tracked</span>

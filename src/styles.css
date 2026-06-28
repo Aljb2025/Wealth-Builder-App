@@ -310,6 +310,10 @@ small {
   background: var(--coral);
 }
 
+.bar.orange i {
+  background: var(--orange);
+}
+
 .workbench,
 .portfolio-grid {
   display: grid;
