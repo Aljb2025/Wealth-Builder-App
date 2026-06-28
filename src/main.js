@@ -1798,8 +1798,6 @@ render();
 loadSupabaseData();
 
 window.addEventListener('scroll', () => {
-  if (dismissOpenOverlay()) return;
-
   const isMobile = window.matchMedia('(max-width: 720px)').matches;
   const shouldHideLogo = isMobile && window.scrollY > 12;
 
@@ -1815,8 +1813,9 @@ window.addEventListener('scroll', () => {
   document.querySelector('.sidebar')?.classList.toggle('logo-hidden', mobileLogoHidden);
 }, { passive: true });
 
-function dismissOpenOverlay() {
+function dismissOpenOverlay(event) {
   if (!quickEntry && !assetEntry && !debtEntry) return false;
+  if (event?.target?.closest?.('.quick-entry-panel')) return false;
 
   quickEntry = null;
   assetEntry = null;

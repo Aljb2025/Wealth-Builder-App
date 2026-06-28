@@ -569,6 +569,7 @@ small {
   left: var(--overlay-left, auto);
   right: auto;
   width: min(360px, calc(100vw - 32px));
+  max-height: min(88vh, 560px);
   display: grid;
   gap: 12px;
   padding: 18px;
@@ -576,6 +577,7 @@ small {
   border-radius: 8px;
   background: #e8f2f8;
   box-shadow: var(--shadow);
+  overflow-y: auto;
   pointer-events: auto;
 }
 
