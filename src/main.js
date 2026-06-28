@@ -1642,7 +1642,7 @@ async function loadSupabaseData() {
   const sessionId = getSessionId();
   const { data: profile, error } = await supabase
     .from('wealth_profiles')
-    .select('*, asset_allocations(*)')
+    .select('*, asset_allocations(*), debt_items(*)')
     .eq('session_id', sessionId)
     .maybeSingle();
 
@@ -1659,7 +1659,11 @@ async function loadSupabaseData() {
     Object.keys(state.budget).forEach((key) => {
       if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
     });
-    if (!hasSavedLocalPlan) state.debtItems = normalizeDebtItems(null, state.budget);
+    if (!hasSavedLocalPlan) {
+      state.debtItems = profile.debt_items?.length
+        ? normalizeDebtItems(profile.debt_items, state.budget)
+        : normalizeDebtItems(null, state.budget);
+    }
 
     state.allocations = state.allocations.map((item) => ({
       ...item,
@@ -1757,6 +1761,32 @@ async function savePlan() {
   } else {
     state.status = allocationError ? 'Allocation save failed' : 'Synced with Supabase';
   }
+
+  const debtPayload = state.debtItems.map((item) => ({
+    profile_id: profile.id,
+    key: item.key,
+    type: item.type || 'other',
+    label: item.label || 'Debt',
+    balance: numberValue(item.balance),
+    apr: numberValue(item.apr),
+    min_payment: numberValue(item.min_payment),
+    updated_at: new Date().toISOString()
+  }));
+
+  const deleteDebtResult = await supabase
+    .from('debt_items')
+    .delete()
+    .eq('profile_id', profile.id);
+
+  let debtError = deleteDebtResult.error;
+  if (!debtError && debtPayload.length) {
+    const debtResult = await supabase
+      .from('debt_items')
+      .insert(debtPayload);
+    debtError = debtResult.error;
+  }
+
+  if (debtError) state.status = 'Debt sync failed';
 
   state.saving = false;
   persistLocal();

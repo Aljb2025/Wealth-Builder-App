@@ -36,6 +36,20 @@ create table if not exists public.asset_allocations (
   unique (profile_id, asset_key)
 );
 
+create table if not exists public.debt_items (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.wealth_profiles(id) on delete cascade,
+  key text not null,
+  type text not null default 'other',
+  label text not null default 'Debt',
+  balance numeric(12, 2) not null default 0,
+  apr numeric(5, 2) not null default 0,
+  min_payment numeric(12, 2) not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (profile_id, key)
+);
+
 create table if not exists public.news_items (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -48,12 +62,17 @@ create table if not exists public.news_items (
 );
 
 create index if not exists idx_asset_allocations_profile_id on public.asset_allocations(profile_id);
+create index if not exists idx_debt_items_profile_id on public.debt_items(profile_id);
 create index if not exists idx_news_items_published_at on public.news_items(published_at desc);
 create unique index if not exists idx_news_items_url on public.news_items(url);
 
 alter table public.wealth_profiles enable row level security;
 alter table public.asset_allocations enable row level security;
+alter table public.debt_items enable row level security;
 alter table public.news_items enable row level security;
+
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.debt_items to anon, authenticated;
 
 drop policy if exists "Session can read own wealth profile" on public.wealth_profiles;
 drop policy if exists "Session can insert own wealth profile" on public.wealth_profiles;
@@ -133,6 +152,62 @@ using (
   exists (
     select 1 from public.wealth_profiles p
     where p.id = asset_allocations.profile_id
+      and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
+  )
+);
+
+drop policy if exists "Session can read own debt items" on public.debt_items;
+drop policy if exists "Session can insert own debt items" on public.debt_items;
+drop policy if exists "Session can update own debt items" on public.debt_items;
+drop policy if exists "Session can delete own debt items" on public.debt_items;
+
+create policy "Session can read own debt items"
+on public.debt_items for select
+to anon, authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
+  )
+);
+
+create policy "Session can insert own debt items"
+on public.debt_items for insert
+to anon, authenticated
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
+  )
+);
+
+create policy "Session can update own debt items"
+on public.debt_items for update
+to anon, authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
+  )
+)
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
+  )
+);
+
+create policy "Session can delete own debt items"
+on public.debt_items for delete
+to anon, authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
       and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
   )
 );
