@@ -360,6 +360,44 @@ function calculatePayoffScenario() {
   };
 }
 
+function emergencyTier(months, monthlyNeed, current) {
+  const tierDefinitions = [
+    { max: 3, target: 3, rate: 1, label: '3-month base fund', status: 'Build the base fund first' },
+    { max: 6, target: 6, rate: 0.25, label: '6-month safety fund', status: 'Slow-build the 6-month tier' },
+    { max: 12, target: 12, rate: 0.1, label: '1-year reserve', status: 'Top off the 1-year reserve' },
+    { max: Infinity, target: 12, rate: 0, label: 'Fully funded', status: 'Emergency fund fully funded' }
+  ];
+  const tier = tierDefinitions.find((item) => months < item.max) || tierDefinitions[tierDefinitions.length - 1];
+  const targetAmount = monthlyNeed * tier.target;
+
+  return {
+    ...tier,
+    targetAmount,
+    gap: Math.max(targetAmount - current, 0),
+    progress: targetAmount ? Math.min((current / targetAmount) * 100, 100) : 100
+  };
+}
+
+function calculateDtiSnapshot(plan) {
+  const { selectedPayoffAsset } = calculatePayoffScenario();
+  const grossIncome = Math.max(plan.income, 0);
+  const housingPayment = Math.max(numberValue(state.payoffScenario.regular_payment), 0);
+  const currentDebtPayment = Math.max(plan.debtContribution, 0);
+  const frontEndDti = grossIncome ? (housingPayment / grossIncome) * 100 : 0;
+  const backEndDti = grossIncome ? ((housingPayment + currentDebtPayment) / grossIncome) * 100 : 0;
+  const maxHousingAt28 = Math.max((grossIncome * 0.28) - currentDebtPayment, 0);
+
+  return {
+    selectedAssetLabel: selectedPayoffAsset?.asset_label || 'Selected property',
+    grossIncome,
+    housingPayment,
+    currentDebtPayment,
+    frontEndDti,
+    backEndDti,
+    maxHousingAt28
+  };
+}
+
 function updatePayoffScenarioResults() {
   const {
     payoffBalance,
@@ -421,10 +459,12 @@ function calculatePlan() {
   const investReady = readiness.cashflow && readiness.debt && readiness.emergency;
 
   const availableCashflow = Math.max(cashflow, 0);
-  const emergencyGap = Math.max((monthlyNeed * 3) - emergencyCurrent, 0);
-  const emergencyContribution = readiness.emergency ? 0 : Math.min(contribution || availableCashflow, availableCashflow, emergencyGap);
-  const debtContribution = readiness.emergency && debt > 0 ? Math.min(availableCashflow, debt) : 0;
-  const investContribution = investReady ? availableCashflow : 0;
+  const emergencyTierInfo = emergencyTier(emergencyMonths, monthlyNeed, emergencyCurrent);
+  const emergencyMax = contribution ? Math.min(contribution, availableCashflow) : availableCashflow;
+  const emergencyContribution = Math.min(emergencyTierInfo.gap, emergencyMax, availableCashflow * emergencyTierInfo.rate);
+  const cashflowAfterEmergency = Math.max(availableCashflow - emergencyContribution, 0);
+  const debtContribution = readiness.emergency && debt > 0 ? Math.min(cashflowAfterEmergency, debt) : 0;
+  const investContribution = investReady ? cashflowAfterEmergency : 0;
 
   return {
     income,
@@ -438,6 +478,7 @@ function calculatePlan() {
     portfolioTotal,
     readiness,
     investReady,
+    emergencyTier: emergencyTierInfo,
     emergencyContribution,
     debtContribution,
     investContribution
@@ -484,11 +525,10 @@ function nextBestMove(plan) {
   }
 
   if (!plan.readiness.emergency) {
-    const target = plan.monthlyNeed * 3;
     return {
       title: 'Build the 3-month emergency fund',
       detail: 'Keep cash liquid while building the base emergency fund before prioritizing debt payoff or investing.',
-      metric: money(Math.max(target - numberValue(state.budget.emergency_current), 0)),
+      metric: money(plan.emergencyTier.gap),
       label: 'needed for 3 months'
     };
   }
@@ -752,6 +792,7 @@ function render() {
     payoffMonthsSaved,
     payoffInterestSaved
   } = calculatePayoffScenario();
+  const dti = calculateDtiSnapshot(plan);
   const savingsGap = Math.max((plan.expenses * 3) - numberValue(state.budget.emergency_current), 0);
   const debtTip = plan.debt > 0
     ? `Use the avalanche method first: send extra payoff dollars to the highest APR balance while keeping minimums current.`
@@ -937,7 +978,12 @@ function render() {
               <span style="left:100%">1 yr</span>
               <i style="width:${emergencyPercent}%"></i>
             </div>
-            <p class="note">Emergency contributions automatically step down after 3 and 6 months. At 12 months, new emergency-fund allocation drops to zero.</p>
+            <div class="tier-summary">
+              <strong>${plan.emergencyTier.status}</strong>
+              <span>${plan.emergencyTier.label} target: ${money(plan.emergencyTier.targetAmount)}</span>
+              <span>Current gap: ${money(plan.emergencyTier.gap)}</span>
+            </div>
+            <p class="note">Emergency contributions now step down by tier: 100% of available emergency allocation until 3 months, 25% from 3 to 6 months, 10% from 6 to 12 months, and 0% after 12 months.</p>
           </section>
         </section>
 
@@ -1008,6 +1054,20 @@ function render() {
               <div><span>With extra payments</span><strong data-payoff-result="accelerated">${formatPayoffStatus(acceleratedPayoff, payoffBalance)}</strong></div>
               <div><span>Time saved</span><strong data-payoff-result="saved">${formatPayoffSaved(payoffMonthsSaved)}</strong></div>
               <div><span>Interest saved</span><strong data-payoff-result="interest">${money(payoffInterestSaved)}</strong></div>
+            </div>
+            <div class="dti-snapshot">
+              <div class="section-title">
+                <strong>Loan Readiness / DTI Snapshot</strong>
+              </div>
+              <ul>
+                <li><span>Gross monthly income</span><strong>${money(dti.grossIncome)}</strong></li>
+                <li><span>Estimated ${dti.selectedAssetLabel} payment</span><strong>${money(dti.housingPayment)}</strong></li>
+                <li><span>Current monthly debt payoff</span><strong>${money(dti.currentDebtPayment)}</strong></li>
+                <li><span>Front-end DTI</span><strong>${pct(dti.frontEndDti)}</strong></li>
+                <li><span>Back-end DTI estimate</span><strong>${pct(dti.backEndDti)}</strong></li>
+                <li><span>28% housing room after debt payoff</span><strong>${money(dti.maxHousingAt28)}</strong></li>
+              </ul>
+              <p class="note">This is a planning estimate. A lender will use gross income, required minimum debt payments, taxes, insurance, HOA, and loan program rules.</p>
             </div>
             <p class="note">This scenario uses the selected real estate asset's owed debt, so it does not affect the main short-term debt readiness check.</p>
           </section>

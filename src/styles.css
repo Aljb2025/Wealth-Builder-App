@@ -696,6 +696,27 @@ select:focus {
   line-height: 1.45;
 }
 
+.tier-summary {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfe;
+  text-align: center;
+}
+
+.tier-summary strong,
+.tier-summary span {
+  display: block;
+}
+
+.tier-summary span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .tier-track {
   position: relative;
   height: 18px;
@@ -988,6 +1009,52 @@ select:focus {
   font-size: 20px;
 }
 
+.dti-snapshot {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.dti-snapshot .section-title {
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.dti-snapshot ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dti-snapshot li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.dti-snapshot span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dti-snapshot strong {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.dti-snapshot .note {
+  margin-bottom: 0;
+}
+
 .asset-table {
   display: grid;
   gap: 9px;
@@ -1254,11 +1321,14 @@ html[data-theme="dark"] .cashflow-summary-group,
 html[data-theme="dark"] .quick-entry-panel,
 html[data-theme="dark"] .gate,
 html[data-theme="dark"] .split-plan div,
+html[data-theme="dark"] .tier-summary,
 html[data-theme="dark"] .debt-snapshot-grid div,
 html[data-theme="dark"] .focus-list div,
 html[data-theme="dark"] .asset-summary,
 html[data-theme="dark"] .asset-summary-item,
 html[data-theme="dark"] .payoff-scenario,
+html[data-theme="dark"] .dti-snapshot,
+html[data-theme="dark"] .dti-snapshot li,
 html[data-theme="dark"] .asset-row,
 html[data-theme="dark"] .research-card,
 html[data-theme="dark"] .market-watchlist,
@@ -1512,6 +1582,7 @@ html[data-theme="dark"] .quick-entry-panel {
   .focus-list,
   .payoff-grid,
   .payoff-results,
+  .dti-snapshot ul,
   .research-grid,
   .news-list {
     grid-template-columns: 1fr;
