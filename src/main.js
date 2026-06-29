@@ -1714,7 +1714,9 @@ async function handleAuthSubmit(mode) {
     : await supabase.auth.signUp({ email, password });
 
   if (result.error) {
-    state.authMessage = result.error.message;
+    state.authMessage = result.error.message === 'Invalid login credentials'
+      ? 'Invalid login. Create an account first, confirm your email if required, then sign in.'
+      : result.error.message;
     render();
     return;
   }
