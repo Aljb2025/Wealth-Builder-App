@@ -126,6 +126,8 @@ const state = {
   profileId: null,
   status: isSupabaseConfigured ? 'Supabase ready' : 'Local draft mode',
   saving: false,
+  authUser: null,
+  authMessage: '',
   visibleAssetKeys: defaultAllocations
     .filter((item) => item.focus_rank)
     .sort((a, b) => a.focus_rank - b.focus_rank)
@@ -137,15 +139,24 @@ let saveTimer;
 let quickEntry = null;
 let assetEntry = null;
 let debtEntry = null;
+let authEntryOpen = false;
 let mobileNavOpen = false;
 let mobileLogoHidden = false;
-let themeMode = localStorage.getItem('wealth-builder-theme') || 'light';
+const storedThemeMode = localStorage.getItem('wealth-builder-theme');
+let themeMode = storedThemeMode || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
 function applyTheme() {
   document.documentElement.dataset.theme = themeMode;
 }
 
 applyTheme();
+
+window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+  if (localStorage.getItem('wealth-builder-theme')) return;
+  themeMode = event.matches ? 'dark' : 'light';
+  applyTheme();
+  render();
+});
 
 function overlayPositionStyle(anchor) {
   if (!anchor) return '';
@@ -916,6 +927,7 @@ function render() {
   const mobileNavIcon = mobileNavOpen
     ? (themeMode === 'dark' ? '/assets/hamburger_nav_x_dark.png' : '/assets/hamburger_nav_x.png')
     : (themeMode === 'dark' ? '/assets/hamburger_nav_dark.png' : '/assets/hamburger_nav.png');
+  const authLabel = state.authUser?.email || 'Login';
 
   app.innerHTML = `
     <div class="app-shell">
@@ -924,6 +936,7 @@ function render() {
           <a class="brand-mark" href="#" aria-label="Back to top">
             <img src="/assets/dollar_sign_crown_logo.png" alt="Wealth Tracker logo">
           </a>
+          <span class="brand-title">Wealth Builder</span>
         </div>
         <button class="mobile-nav-toggle" type="button" data-action="toggle-mobile-nav" aria-label="Open navigation" aria-expanded="${mobileNavOpen}">
           <img src="${mobileNavIcon}" alt="">
@@ -933,10 +946,10 @@ function render() {
           <a href="#readiness-section">Readiness</a>
           <a href="#assets">Assets</a>
           <a href="#news">Research</a>
-          <button class="theme-toggle" type="button" data-action="toggle-theme" aria-label="${themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}">
-            <img src="${themeMode === 'dark' ? '/assets/light_button.png' : '/assets/dark_icon.png'}" alt="" aria-hidden="true">
-          </button>
         </nav>
+        <button class="account-button" type="button" data-action="${state.authUser ? 'sign-out' : 'open-auth'}" title="${state.authUser ? 'Sign out' : 'Create an account to save across devices'}">
+          ${state.authUser ? 'Sign out' : authLabel}
+        </button>
       </aside>
 
       <main>
@@ -1244,10 +1257,40 @@ function render() {
       ${quickEntryOverlay()}
       ${assetEntryOverlay()}
       ${debtEntryOverlay()}
+      ${authOverlay()}
     </div>
   `;
 
   bindEvents();
+}
+
+function authOverlay() {
+  if (!authEntryOpen || state.authUser) return '';
+
+  return `
+    <div class="quick-entry-layer auth-entry-layer" data-action="close-auth">
+      <section class="quick-entry-panel auth-panel">
+        <div class="quick-entry-title">
+          <strong>Save And Sync</strong>
+          <button type="button" data-action="close-auth">Close</button>
+        </div>
+        <p class="auth-note">Create an account or sign in to save this plan across devices. You can still use the app without logging in.</p>
+        <label>
+          <span>Email</span>
+          <input data-auth-email type="email" autocomplete="email" placeholder="you@example.com">
+        </label>
+        <label>
+          <span>Password</span>
+          <input data-auth-password type="password" autocomplete="current-password" placeholder="Password">
+        </label>
+        ${state.authMessage ? `<p class="auth-message">${state.authMessage}</p>` : ''}
+        <div class="quick-entry-actions">
+          <button class="cashflow-add-btn" type="button" data-action="sign-in">Sign In</button>
+          <button class="cashflow-add-btn secondary-auth-action" type="button" data-action="sign-up">Create Account</button>
+        </div>
+      </section>
+    </div>
+  `;
 }
 
 function field(label, name, type = 'number') {
@@ -1278,12 +1321,20 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector('[data-action="toggle-theme"]')?.addEventListener('click', () => {
-    themeMode = themeMode === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('wealth-builder-theme', themeMode);
-    applyTheme();
-    render();
+  document.querySelector('[data-action="open-auth"]')?.addEventListener('click', openAuthPanel);
+
+  document.querySelectorAll('[data-action="close-auth"]').forEach((element) => {
+    element.addEventListener('click', (event) => {
+      if (event.target !== event.currentTarget && event.currentTarget.classList.contains('quick-entry-layer')) return;
+      authEntryOpen = false;
+      state.authMessage = '';
+      render();
+    });
   });
+
+  document.querySelector('[data-action="sign-in"]')?.addEventListener('click', () => handleAuthSubmit('sign-in'));
+  document.querySelector('[data-action="sign-up"]')?.addEventListener('click', () => handleAuthSubmit('sign-up'));
+  document.querySelector('[data-action="sign-out"]')?.addEventListener('click', signOut);
 
   document.querySelectorAll('nav a').forEach((link) => {
     link.addEventListener('click', (event) => {
@@ -1630,6 +1681,73 @@ function bindEvents() {
   });
 }
 
+function openAuthPanel(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  mobileNavOpen = false;
+  authEntryOpen = true;
+  state.authMessage = '';
+  render();
+  window.setTimeout(() => document.querySelector('[data-auth-email]')?.focus(), 0);
+}
+
+async function handleAuthSubmit(mode) {
+  if (!supabase) {
+    state.authMessage = 'Add Supabase env vars before creating an account.';
+    render();
+    return;
+  }
+
+  const email = document.querySelector('[data-auth-email]')?.value?.trim();
+  const password = document.querySelector('[data-auth-password]')?.value || '';
+  if (!email || !password) {
+    state.authMessage = 'Enter an email and password.';
+    render();
+    return;
+  }
+
+  state.authMessage = mode === 'sign-in' ? 'Signing in...' : 'Creating account...';
+  render();
+
+  const result = mode === 'sign-in'
+    ? await supabase.auth.signInWithPassword({ email, password })
+    : await supabase.auth.signUp({ email, password });
+
+  if (result.error) {
+    state.authMessage = result.error.message;
+    render();
+    return;
+  }
+
+  state.authUser = result.data.session?.user || null;
+
+  if (!state.authUser) {
+    state.authMessage = 'Check your email to confirm your account, then sign in.';
+    state.status = 'Email confirmation needed';
+    authEntryOpen = true;
+    render();
+    return;
+  }
+
+  authEntryOpen = false;
+  state.authMessage = '';
+  state.status = 'Signed in';
+
+  const loadedProfile = await loadSupabaseData({ forceRemote: true, includeNews: false });
+  if (!loadedProfile) await savePlan();
+
+  render();
+}
+
+async function signOut() {
+  if (!supabase) return;
+
+  await supabase.auth.signOut();
+  state.authUser = null;
+  state.status = 'Signed out';
+  render();
+}
+
 function handleDarkNumberStepperCursor(event) {
   const input = event.currentTarget;
   if (themeMode !== 'dark' || input.disabled || input.readOnly) {
@@ -1684,7 +1802,7 @@ function syncVisibleAssets() {
 }
 
 function isEditingFormInput() {
-  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field], [data-debt-entry-field], [data-payoff-field], [data-payoff-balance]'));
+  return Boolean(document.activeElement?.matches?.('#budget input, #budget select, [data-cashflow], [data-cashflow-name], [data-quick-name], [data-quick-amount], [data-asset-entry-field], [data-debt-entry-field], [data-payoff-field], [data-payoff-balance], [data-auth-email], [data-auth-password]'));
 }
 
 function persistLocal() {
@@ -1727,70 +1845,86 @@ function hasLocalPlan() {
   return Boolean(localStorage.getItem('wealthbuilder-plan'));
 }
 
-async function loadSupabaseData() {
+function applyProfile(profile, { forceRemote = false } = {}) {
+  const localVisibleAssetKeys = [...state.visibleAssetKeys];
+  const hasSavedLocalPlan = hasLocalPlan() && !forceRemote;
+  state.profileId = profile.id;
+
+  Object.keys(state.budget).forEach((key) => {
+    if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
+  });
+
+  if (!hasSavedLocalPlan || forceRemote) {
+    const hasRemoteCashflowItems = Boolean(profile.income_items?.length || profile.expense_items?.length);
+    state.cashflowInputs = hasRemoteCashflowItems
+      ? cashflowInputsFromProfile(profile)
+      : cashflowInputsFromBudget(state.budget);
+    state.debtItems = profile.debt_items?.length
+      ? normalizeDebtItems(profile.debt_items, state.budget)
+      : normalizeDebtItems(null, state.budget);
+  }
+
+  state.allocations = state.allocations.map((item) => ({
+    ...item,
+    ...(profile.asset_allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
+  }));
+
+  const profileFocusAssetKeys = state.allocations
+    .filter((item) => item.focus_rank)
+    .sort((a, b) => a.focus_rank - b.focus_rank)
+    .map((item) => item.asset_key);
+  state.visibleAssetKeys = hasSavedLocalPlan ? localVisibleAssetKeys : profileFocusAssetKeys;
+  syncVisibleAssets();
+  state.status = state.authUser ? 'Synced to account' : 'Synced with Supabase';
+}
+
+async function loadSupabaseData(options = {}) {
   if (!supabase) return;
 
   const sessionId = getSessionId();
-  const { data: profile, error } = await supabase
+  let query = supabase
     .from('wealth_profiles')
     .select('*, asset_allocations(*), debt_items(*), income_items(*), expense_items(*)')
-    .eq('session_id', sessionId)
-    .maybeSingle();
+    .limit(1);
+
+  query = state.authUser
+    ? query.eq('user_id', state.authUser.id)
+    : query.eq('session_id', sessionId);
+
+  const { data: profiles, error } = await query;
+  const profile = profiles?.[0] || null;
 
   if (error) {
     state.status = 'Supabase needs schema';
     render();
-    return;
+    return false;
   }
 
   if (profile) {
-    const localVisibleAssetKeys = [...state.visibleAssetKeys];
-    const hasSavedLocalPlan = hasLocalPlan();
-    state.profileId = profile.id;
-    Object.keys(state.budget).forEach((key) => {
-      if (profile[key] !== undefined && profile[key] !== null) state.budget[key] = profile[key];
+    applyProfile(profile, options);
+  }
+
+  if (options.includeNews !== false) {
+    const { data: liveNews } = await supabase.functions.invoke('marketaux-news', {
+      method: 'GET'
     });
-    if (!hasSavedLocalPlan) {
-      const hasRemoteCashflowItems = Boolean(profile.income_items?.length || profile.expense_items?.length);
-      state.cashflowInputs = hasRemoteCashflowItems
-        ? cashflowInputsFromProfile(profile)
-        : cashflowInputsFromBudget(state.budget);
-      state.debtItems = profile.debt_items?.length
-        ? normalizeDebtItems(profile.debt_items, state.budget)
-        : normalizeDebtItems(null, state.budget);
+
+    if (liveNews?.articles?.length) {
+      state.news = mergeNewsItems(liveNews.articles, fallbackNews);
+      render();
+      return Boolean(profile);
     }
 
-    state.allocations = state.allocations.map((item) => ({
-      ...item,
-      ...(profile.asset_allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
-    }));
-    const profileFocusAssetKeys = state.allocations
-      .filter((item) => item.focus_rank)
-      .sort((a, b) => a.focus_rank - b.focus_rank)
-      .map((item) => item.asset_key);
-    state.visibleAssetKeys = hasSavedLocalPlan ? localVisibleAssetKeys : profileFocusAssetKeys;
-    syncVisibleAssets();
-    state.status = 'Synced with Supabase';
+    const { data: news } = await supabase
+      .from('news_items')
+      .select('title, source, url, published_at, summary')
+      .order('published_at', { ascending: false })
+      .limit(12);
+
+    if (news?.length) state.news = mergeNewsItems(news, fallbackNews);
   }
-
-  const { data: liveNews } = await supabase.functions.invoke('marketaux-news', {
-    method: 'GET'
-  });
-
-  if (liveNews?.articles?.length) {
-    state.news = mergeNewsItems(liveNews.articles, fallbackNews);
-    render();
-    return;
-  }
-
-  const { data: news } = await supabase
-    .from('news_items')
-    .select('title, source, url, published_at, summary')
-    .order('published_at', { ascending: false })
-    .limit(12);
-
-  if (news?.length) state.news = mergeNewsItems(news, fallbackNews);
   render();
+  return Boolean(profile);
 }
 
 async function savePlan() {
@@ -1811,18 +1945,53 @@ async function savePlan() {
   const sessionId = getSessionId();
   const payload = {
     session_id: sessionId,
+    user_id: state.authUser?.id || null,
     ...state.budget,
     updated_at: new Date().toISOString()
   };
 
-  const { data: profile, error } = await supabase
-    .from('wealth_profiles')
-    .upsert(payload, { onConflict: 'session_id' })
-    .select('id')
-    .single();
+  let profile;
+  let error;
+
+  if (state.authUser) {
+    const existingResult = await supabase
+      .from('wealth_profiles')
+      .select('id')
+      .eq('user_id', state.authUser.id)
+      .maybeSingle();
+
+    if (existingResult.error) {
+      error = existingResult.error;
+    } else if (existingResult.data) {
+      const updateResult = await supabase
+        .from('wealth_profiles')
+        .update(payload)
+        .eq('id', existingResult.data.id)
+        .select('id')
+        .single();
+      profile = updateResult.data;
+      error = updateResult.error;
+    } else {
+      const insertResult = await supabase
+        .from('wealth_profiles')
+        .insert(payload)
+        .select('id')
+        .single();
+      profile = insertResult.data;
+      error = insertResult.error;
+    }
+  } else {
+    const upsertResult = await supabase
+      .from('wealth_profiles')
+      .upsert(payload, { onConflict: 'session_id' })
+      .select('id')
+      .single();
+    profile = upsertResult.data;
+    error = upsertResult.error;
+  }
 
   if (error) {
-    state.status = 'Supabase save failed';
+    state.status = state.authUser ? 'Account save failed' : 'Supabase save failed';
     state.saving = false;
     if (!isEditingFormInput()) render();
     return;
@@ -1857,7 +2026,7 @@ async function savePlan() {
     allocationError = fallbackResult.error;
     state.status = allocationError ? 'Allocation save failed' : 'Supabase needs owed debt column';
   } else {
-    state.status = allocationError ? 'Allocation save failed' : 'Synced with Supabase';
+    state.status = allocationError ? 'Allocation save failed' : state.authUser ? 'Synced to account' : 'Synced with Supabase';
   }
 
   const debtPayload = state.debtItems.map((item) => ({
@@ -1945,9 +2114,25 @@ async function savePlan() {
   if (!isEditingFormInput()) render();
 }
 
+async function initializeAuth() {
+  if (!supabase) return;
+
+  const { data } = await supabase.auth.getUser();
+  state.authUser = data.user || null;
+  await loadSupabaseData({ forceRemote: Boolean(state.authUser) });
+
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    const nextUser = session?.user || null;
+    const changed = nextUser?.id !== state.authUser?.id;
+    state.authUser = nextUser;
+    if (changed && nextUser) await loadSupabaseData({ forceRemote: true, includeNews: false });
+    render();
+  });
+}
+
 loadLocal();
 render();
-loadSupabaseData();
+initializeAuth();
 
 window.addEventListener('scroll', () => {
   const isMobile = window.matchMedia('(max-width: 720px)').matches;
@@ -1964,6 +2149,15 @@ window.addEventListener('scroll', () => {
   mobileLogoHidden = shouldHideLogo;
   document.querySelector('.sidebar')?.classList.toggle('logo-hidden', mobileLogoHidden);
 }, { passive: true });
+
+window.addEventListener('pointerdown', (event) => {
+  const isMobile = window.matchMedia('(max-width: 720px)').matches;
+  if (!isMobile || !mobileNavOpen) return;
+  if (event.target?.closest?.('.sidebar')) return;
+
+  mobileNavOpen = false;
+  render();
+});
 
 function dismissOpenOverlay(event) {
   if (!quickEntry && !assetEntry && !debtEntry) return false;

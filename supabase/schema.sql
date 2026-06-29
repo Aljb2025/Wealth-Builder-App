@@ -3,6 +3,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.wealth_profiles (
   id uuid primary key default gen_random_uuid(),
   session_id text not null unique,
+  user_id uuid references auth.users(id) on delete cascade,
   name text default 'My Plan',
   monthly_income numeric(12, 2) not null default 0,
   fixed_expenses numeric(12, 2) not null default 0,
@@ -92,6 +93,9 @@ create index if not exists idx_income_items_profile_id on public.income_items(pr
 create index if not exists idx_expense_items_profile_id on public.expense_items(profile_id);
 create index if not exists idx_news_items_published_at on public.news_items(published_at desc);
 create unique index if not exists idx_news_items_url on public.news_items(url);
+alter table public.wealth_profiles add column if not exists user_id uuid references auth.users(id) on delete cascade;
+create unique index if not exists idx_wealth_profiles_user_id on public.wealth_profiles(user_id) where user_id is not null;
+create index if not exists idx_wealth_profiles_session_id on public.wealth_profiles(session_id);
 
 alter table public.wealth_profiles enable row level security;
 alter table public.asset_allocations enable row level security;
@@ -101,6 +105,8 @@ alter table public.expense_items enable row level security;
 alter table public.news_items enable row level security;
 
 grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.wealth_profiles to anon, authenticated;
+grant select, insert, update, delete on public.asset_allocations to anon, authenticated;
 grant select, insert, update, delete on public.debt_items to anon, authenticated;
 grant select, insert, update, delete on public.income_items to anon, authenticated;
 grant select, insert, update, delete on public.expense_items to anon, authenticated;
@@ -352,6 +358,256 @@ using (
     select 1 from public.wealth_profiles p
     where p.id = expense_items.profile_id
       and p.session_id = coalesce(nullif(current_setting('request.headers', true), ''), '{}')::json->>'x-wealth-session-id'
+  )
+);
+
+drop policy if exists "Account can read own wealth profile" on public.wealth_profiles;
+drop policy if exists "Account can insert own wealth profile" on public.wealth_profiles;
+drop policy if exists "Account can update own wealth profile" on public.wealth_profiles;
+drop policy if exists "Account can delete own wealth profile" on public.wealth_profiles;
+
+create policy "Account can read own wealth profile"
+on public.wealth_profiles for select
+to authenticated
+using (user_id = (select auth.uid()));
+
+create policy "Account can insert own wealth profile"
+on public.wealth_profiles for insert
+to authenticated
+with check (user_id = (select auth.uid()));
+
+create policy "Account can update own wealth profile"
+on public.wealth_profiles for update
+to authenticated
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
+
+create policy "Account can delete own wealth profile"
+on public.wealth_profiles for delete
+to authenticated
+using (user_id = (select auth.uid()));
+
+drop policy if exists "Account can read own allocations" on public.asset_allocations;
+drop policy if exists "Account can insert own allocations" on public.asset_allocations;
+drop policy if exists "Account can update own allocations" on public.asset_allocations;
+drop policy if exists "Account can delete own allocations" on public.asset_allocations;
+
+create policy "Account can read own allocations"
+on public.asset_allocations for select
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = asset_allocations.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can insert own allocations"
+on public.asset_allocations for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = asset_allocations.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can update own allocations"
+on public.asset_allocations for update
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = asset_allocations.profile_id
+      and p.user_id = (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = asset_allocations.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can delete own allocations"
+on public.asset_allocations for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = asset_allocations.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Account can read own debt items" on public.debt_items;
+drop policy if exists "Account can insert own debt items" on public.debt_items;
+drop policy if exists "Account can update own debt items" on public.debt_items;
+drop policy if exists "Account can delete own debt items" on public.debt_items;
+
+create policy "Account can read own debt items"
+on public.debt_items for select
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can insert own debt items"
+on public.debt_items for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can update own debt items"
+on public.debt_items for update
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can delete own debt items"
+on public.debt_items for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = debt_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Account can read own income items" on public.income_items;
+drop policy if exists "Account can insert own income items" on public.income_items;
+drop policy if exists "Account can update own income items" on public.income_items;
+drop policy if exists "Account can delete own income items" on public.income_items;
+
+create policy "Account can read own income items"
+on public.income_items for select
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = income_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can insert own income items"
+on public.income_items for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = income_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can update own income items"
+on public.income_items for update
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = income_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = income_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can delete own income items"
+on public.income_items for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = income_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+drop policy if exists "Account can read own expense items" on public.expense_items;
+drop policy if exists "Account can insert own expense items" on public.expense_items;
+drop policy if exists "Account can update own expense items" on public.expense_items;
+drop policy if exists "Account can delete own expense items" on public.expense_items;
+
+create policy "Account can read own expense items"
+on public.expense_items for select
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = expense_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can insert own expense items"
+on public.expense_items for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = expense_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can update own expense items"
+on public.expense_items for update
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = expense_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+)
+with check (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = expense_items.profile_id
+      and p.user_id = (select auth.uid())
+  )
+);
+
+create policy "Account can delete own expense items"
+on public.expense_items for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.wealth_profiles p
+    where p.id = expense_items.profile_id
+      and p.user_id = (select auth.uid())
   )
 );
 
