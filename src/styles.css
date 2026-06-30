@@ -139,18 +139,11 @@ a {
 }
 
 .brand-title {
-  color: #fff;
+  color: var(--mint);
   font-size: 18px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
-  -webkit-text-stroke: 1px var(--steel);
-  paint-order: stroke fill;
-  text-shadow:
-    1px 0 0 var(--steel),
-    -1px 0 0 var(--steel),
-    0 1px 0 var(--steel),
-    0 -1px 0 var(--steel);
 }
 
 nav {
@@ -605,8 +598,73 @@ small {
   font-weight: 700;
 }
 
+.auth-account-status {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.auth-account-status span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-account-status strong {
+  color: var(--ink);
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
 .secondary-auth-action {
   background: var(--steel);
+}
+
+.auth-primary-actions,
+.auth-secondary-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-primary-actions {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.auth-secondary-actions {
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.auth-reset-action {
+  min-height: 38px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--steel);
+  font-weight: 400;
+}
+
+.auth-reset-action:hover,
+.auth-reset-action:focus-visible {
+  outline: none;
+  text-decoration: underline;
+}
+
+.auth-close-action {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.auth-close-action:hover,
+.auth-close-action:focus-visible {
+  outline: none;
+  background: #dce9f0;
 }
 
 .quick-entry-title,
@@ -627,6 +685,7 @@ small {
 
 .quick-entry-actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .expense-remove-btn {
