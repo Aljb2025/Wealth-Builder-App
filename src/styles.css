@@ -144,6 +144,13 @@ a {
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
+  -webkit-text-stroke: 1px var(--steel);
+  paint-order: stroke fill;
+  text-shadow:
+    1px 0 0 var(--steel),
+    -1px 0 0 var(--steel),
+    0 1px 0 var(--steel),
+    0 -1px 0 var(--steel);
 }
 
 nav {
