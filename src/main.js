@@ -927,7 +927,10 @@ function render() {
   const mobileNavIcon = mobileNavOpen
     ? (themeMode === 'dark' ? '/assets/hamburger_nav_x_dark.png' : '/assets/hamburger_nav_x.png')
     : (themeMode === 'dark' ? '/assets/hamburger_nav_dark.png' : '/assets/hamburger_nav.png');
-  const authLabel = state.authUser?.email || 'Login';
+  const authLabel = state.authUser ? 'Account' : 'Login';
+  const authTitle = state.authUser
+    ? `Signed in as ${state.authUser.email}`
+    : 'Create an account to save across devices';
 
   app.innerHTML = `
     <div class="app-shell">
@@ -947,8 +950,8 @@ function render() {
           <a href="#assets">Assets</a>
           <a href="#news">Research</a>
         </nav>
-        <button class="account-button" type="button" data-action="${state.authUser ? 'sign-out' : 'open-auth'}" title="${state.authUser ? 'Sign out' : 'Create an account to save across devices'}">
-          ${state.authUser ? 'Sign out' : authLabel}
+        <button class="account-button" type="button" data-action="open-auth" title="${authTitle}">
+          ${authLabel}
         </button>
       </aside>
 
@@ -1265,14 +1268,36 @@ function render() {
 }
 
 function authOverlay() {
-  if (!authEntryOpen || state.authUser) return '';
+  if (!authEntryOpen) return '';
+
+  if (state.authUser) {
+    return `
+      <div class="quick-entry-layer auth-entry-layer" data-action="close-auth">
+        <section class="quick-entry-panel auth-panel">
+          <div class="quick-entry-title">
+            <strong>Account</strong>
+            <button type="button" data-action="close-auth">Close</button>
+          </div>
+          <div class="auth-account-status">
+            <span>Signed in as</span>
+            <strong>${state.authUser.email}</strong>
+          </div>
+          <p class="auth-note">Your plan is saving to your account and can sync across devices.</p>
+          ${state.authMessage ? `<p class="auth-message">${state.authMessage}</p>` : ''}
+          <div class="quick-entry-actions">
+            <button class="expense-remove-btn" type="button" data-action="sign-out">Sign Out</button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
 
   return `
     <div class="quick-entry-layer auth-entry-layer" data-action="close-auth">
       <section class="quick-entry-panel auth-panel">
-        <div class="quick-entry-title">
-          <strong>Save And Sync</strong>
-          <button type="button" data-action="close-auth">Close</button>
+        <div class="auth-primary-actions">
+          <button class="cashflow-add-btn" type="button" data-action="sign-in">Sign In</button>
+          <button class="cashflow-add-btn secondary-auth-action" type="button" data-action="sign-up">Create Account</button>
         </div>
         <p class="auth-note">Create an account or sign in to save this plan across devices. You can still use the app without logging in.</p>
         <label>
@@ -1284,9 +1309,9 @@ function authOverlay() {
           <input data-auth-password type="password" autocomplete="current-password" placeholder="Password">
         </label>
         ${state.authMessage ? `<p class="auth-message">${state.authMessage}</p>` : ''}
-        <div class="quick-entry-actions">
-          <button class="cashflow-add-btn" type="button" data-action="sign-in">Sign In</button>
-          <button class="cashflow-add-btn secondary-auth-action" type="button" data-action="sign-up">Create Account</button>
+        <div class="auth-secondary-actions">
+          <button class="auth-reset-action" type="button" data-action="reset-password">Reset Password</button>
+          <button class="auth-close-action" type="button" data-action="close-auth">Close</button>
         </div>
       </section>
     </div>
@@ -1334,6 +1359,7 @@ function bindEvents() {
 
   document.querySelector('[data-action="sign-in"]')?.addEventListener('click', () => handleAuthSubmit('sign-in'));
   document.querySelector('[data-action="sign-up"]')?.addEventListener('click', () => handleAuthSubmit('sign-up'));
+  document.querySelector('[data-action="reset-password"]')?.addEventListener('click', sendPasswordReset);
   document.querySelector('[data-action="sign-out"]')?.addEventListener('click', signOut);
 
   document.querySelectorAll('nav a').forEach((link) => {
@@ -1746,7 +1772,37 @@ async function signOut() {
 
   await supabase.auth.signOut();
   state.authUser = null;
+  authEntryOpen = false;
+  state.authMessage = '';
   state.status = 'Signed out';
+  render();
+}
+
+async function sendPasswordReset() {
+  if (!supabase) {
+    state.authMessage = 'Add Supabase env vars before resetting a password.';
+    render();
+    return;
+  }
+
+  const email = document.querySelector('[data-auth-email]')?.value?.trim();
+  if (!email) {
+    state.authMessage = 'Enter your email, then select Reset Password.';
+    render();
+    return;
+  }
+
+  state.authMessage = 'Sending password reset email...';
+  render();
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+
+  state.authMessage = error
+    ? error.message
+    : 'Password reset email sent. Check your inbox.';
+  authEntryOpen = true;
   render();
 }
 
