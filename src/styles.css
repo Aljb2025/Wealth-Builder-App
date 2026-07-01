@@ -635,22 +635,8 @@ small {
 }
 
 .auth-secondary-actions {
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: 2px;
-}
-
-.auth-reset-action {
-  min-height: 38px;
-  padding: 0 4px;
-  background: transparent;
-  color: var(--steel);
-  font-weight: 400;
-}
-
-.auth-reset-action:hover,
-.auth-reset-action:focus-visible {
-  outline: none;
-  text-decoration: underline;
 }
 
 .auth-close-action {

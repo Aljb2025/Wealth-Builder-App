@@ -1310,7 +1310,6 @@ function authOverlay() {
         </label>
         ${state.authMessage ? `<p class="auth-message">${state.authMessage}</p>` : ''}
         <div class="auth-secondary-actions">
-          <button class="auth-reset-action" type="button" data-action="reset-password">Reset Password</button>
           <button class="auth-close-action" type="button" data-action="close-auth">Close</button>
         </div>
       </section>
@@ -1359,7 +1358,6 @@ function bindEvents() {
 
   document.querySelector('[data-action="sign-in"]')?.addEventListener('click', () => handleAuthSubmit('sign-in'));
   document.querySelector('[data-action="sign-up"]')?.addEventListener('click', () => handleAuthSubmit('sign-up'));
-  document.querySelector('[data-action="reset-password"]')?.addEventListener('click', sendPasswordReset);
   document.querySelector('[data-action="sign-out"]')?.addEventListener('click', signOut);
 
   document.querySelectorAll('nav a').forEach((link) => {
@@ -1775,34 +1773,6 @@ async function signOut() {
   authEntryOpen = false;
   state.authMessage = '';
   state.status = 'Signed out';
-  render();
-}
-
-async function sendPasswordReset() {
-  if (!supabase) {
-    state.authMessage = 'Add Supabase env vars before resetting a password.';
-    render();
-    return;
-  }
-
-  const email = document.querySelector('[data-auth-email]')?.value?.trim();
-  if (!email) {
-    state.authMessage = 'Enter your email, then select Reset Password.';
-    render();
-    return;
-  }
-
-  state.authMessage = 'Sending password reset email...';
-  render();
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
-  });
-
-  state.authMessage = error
-    ? error.message
-    : 'Password reset email sent. Check your inbox.';
-  authEntryOpen = true;
   render();
 }
 
