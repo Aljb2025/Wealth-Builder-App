@@ -1534,7 +1534,7 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector('[data-action="save-asset-entry"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="save-asset-entry"]')?.addEventListener('click', async () => {
     if (!assetEntry) return;
 
     const selectedKey = document.querySelector('[data-asset-entry-field="asset_key"]')?.value;
@@ -1555,11 +1555,11 @@ function bindEvents() {
     syncVisibleAssets();
     assetEntry = null;
     persistLocal();
-    scheduleSave();
+    await savePlan();
     render();
   });
 
-  document.querySelector('[data-action="remove-asset-entry"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="remove-asset-entry"]')?.addEventListener('click', async () => {
     const key = assetEntry?.assetKey;
     if (!key) return;
 
@@ -1575,7 +1575,7 @@ function bindEvents() {
     syncVisibleAssets();
     assetEntry = null;
     persistLocal();
-    scheduleSave();
+    await savePlan();
     render();
   });
 
