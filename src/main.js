@@ -29,51 +29,49 @@ const debtTypes = [
 ];
 
 const defaultBudget = {
-  name: 'My wealth plan',
+  name: 'My Budget',
   monthly_income: 9200,
-  fixed_expenses: 3650,
-  variable_expenses: 1600,
+  fixed_expenses: 2600,
+  variable_expenses: 0,
   debt_balance: 4200,
   debt_apr: 12.5,
-  emergency_current: 18500,
+  emergency_current: 0,
   emergency_monthly_need: 0,
-  emergency_apy: 4.2,
-  monthly_contribution: 1900,
+  emergency_apy: 0,
+  monthly_contribution: 0,
   risk_profile: 'balanced',
   timeline_years: 12
 };
 
 const defaultCashflowInputs = {
   income: [
-    { key: 'primary_income', label: 'Primary income', amount: 9200 },
-    { key: 'side_income', label: 'Side income', amount: 0 },
-    { key: 'other_income', label: 'Other income', amount: 0 }
+    { key: 'primary_income', label: 'Primary income', amount: 9200 }
   ],
   fixed: [
-    { key: 'housing', label: 'Housing', amount: 2600 },
-    { key: 'utilities', label: 'Utilities', amount: 450 },
-    { key: 'insurance', label: 'Insurance', amount: 600 }
+    { key: 'home', label: 'Home', amount: 2600 }
   ],
-  variable: [
-    { key: 'food', label: 'Food', amount: 700 },
-    { key: 'transportation', label: 'Transportation', amount: 400 },
-    { key: 'lifestyle', label: 'Lifestyle', amount: 500 }
-  ]
+  variable: []
 };
 
 const defaultDebtItems = [
   { key: 'credit_card_debt', type: 'credit_cards', label: 'Credit cards', balance: 4200, apr: 12.5, min_payment: 125 }
 ];
 
-const defaultAllocations = assetClasses.map((asset, index) => ({
+const defaultPayoffScenario = {
+  asset_key: 'real_estate_home',
+  interest_rate: 6.5,
+  regular_payment: 1200,
+  extra_monthly: 0,
+  extra_annual: 0
+};
+
+const defaultAllocations = assetClasses.map((asset) => ({
   asset_key: asset.key,
   asset_label: asset.label,
-  current_value: [165000, 0, 0, 18500, 7200, 4800, 11000, 26000, 78000, 0, 9000, 15000, 2500][index],
+  current_value: asset.key === 'stocks' ? 18500 : 0,
   owed_debt: 0,
-  target_percent: [22, 12, 4, 18, 6, 5, 8, 10, 10, 0, 3, 2, 0][index],
-  focus_rank: ['stocks', 'treasury_bills', 'mutual_funds'].includes(asset.key)
-    ? ['stocks', 'treasury_bills', 'mutual_funds'].indexOf(asset.key) + 1
-    : null,
+  target_percent: asset.key === 'stocks' ? 100 : 0,
+  focus_rank: asset.key === 'stocks' ? 1 : null,
   account_type: asset.key === '401k' ? 'tax-advantaged' : 'taxable',
   liquidity: asset.liquidity,
   notes: ''
@@ -116,13 +114,7 @@ const state = {
   news: fallbackNews,
   cashflowInputs: structuredClone(defaultCashflowInputs),
   debtItems: structuredClone(defaultDebtItems),
-  payoffScenario: {
-    asset_key: 'real_estate_home',
-    interest_rate: 6.5,
-    regular_payment: 1200,
-    extra_monthly: 0,
-    extra_annual: 0
-  },
+  payoffScenario: structuredClone(defaultPayoffScenario),
   profileId: null,
   status: isSupabaseConfigured ? 'Supabase ready' : 'Local draft mode',
   saving: false,
@@ -202,6 +194,21 @@ function numberValue(value) {
 
 function editableValue(value) {
   return value ?? '';
+}
+
+function numericDisplayValue(value) {
+  return value === '' || value === null || value === undefined ? '0' : value;
+}
+
+function normalizePayoffScenario(scenario = {}) {
+  return {
+    ...defaultPayoffScenario,
+    ...scenario,
+    interest_rate: numericDisplayValue(scenario.interest_rate ?? defaultPayoffScenario.interest_rate),
+    regular_payment: numericDisplayValue(scenario.regular_payment ?? defaultPayoffScenario.regular_payment),
+    extra_monthly: numericDisplayValue(scenario.extra_monthly),
+    extra_annual: numericDisplayValue(scenario.extra_annual)
+  };
 }
 
 function makeCashflowKey(type) {
@@ -323,14 +330,14 @@ function cashflowInputsFromProfile(profile) {
 function cashflowInputsFromBudget(budget) {
   const inputs = structuredClone(defaultCashflowInputs);
   inputs.income[0].amount = budget.monthly_income;
-  inputs.income[1].amount = 0;
-  inputs.income[2].amount = 0;
   inputs.fixed[0].amount = budget.fixed_expenses;
-  inputs.fixed[1].amount = 0;
-  inputs.fixed[2].amount = 0;
-  inputs.variable[0].amount = budget.variable_expenses;
-  inputs.variable[1].amount = 0;
-  inputs.variable[2].amount = 0;
+  if (budget.variable_expenses > 0) {
+    inputs.variable.push({
+      key: 'variable_expense',
+      label: 'Variable expense',
+      amount: budget.variable_expenses
+    });
+  }
   return inputs;
 }
 
@@ -1142,23 +1149,23 @@ function render() {
               </label>
               <label>
                 <span>Mortgage balance</span>
-                <input data-payoff-balance type="number" min="0" step="any" inputmode="decimal" value="${editableValue(payoffBalance)}">
+                <input data-payoff-balance type="number" min="0" step="any" inputmode="decimal" value="${numericDisplayValue(payoffBalance)}">
               </label>
               <label>
                 <span>Interest rate</span>
-                <input data-payoff-field="interest_rate" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.interest_rate)}">
+                <input data-payoff-field="interest_rate" type="number" min="0" step="any" inputmode="decimal" value="${numericDisplayValue(state.payoffScenario.interest_rate)}">
               </label>
               <label>
                 <span>Regular monthly payment</span>
-                <input data-payoff-field="regular_payment" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.regular_payment)}">
+                <input data-payoff-field="regular_payment" type="number" min="0" step="any" inputmode="decimal" value="${numericDisplayValue(state.payoffScenario.regular_payment)}">
               </label>
               <label>
                 <span>Extra monthly payment</span>
-                <input data-payoff-field="extra_monthly" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.extra_monthly)}">
+                <input data-payoff-field="extra_monthly" type="number" min="0" step="any" inputmode="decimal" value="${numericDisplayValue(state.payoffScenario.extra_monthly)}">
               </label>
               <label>
                 <span>Extra annual payment</span>
-                <input data-payoff-field="extra_annual" type="number" min="0" step="any" inputmode="decimal" value="${editableValue(state.payoffScenario.extra_annual)}">
+                <input data-payoff-field="extra_annual" type="number" min="0" step="any" inputmode="decimal" value="${numericDisplayValue(state.payoffScenario.extra_annual)}">
               </label>
             </div>
             <div class="payoff-results">
@@ -1645,7 +1652,7 @@ function bindEvents() {
 
     field.addEventListener('change', (event) => {
       const key = event.target.dataset.payoffField;
-      state.payoffScenario[key] = event.target.value;
+      state.payoffScenario[key] = key === 'asset_key' ? event.target.value : numericDisplayValue(event.target.value);
       persistLocal();
       scheduleSave();
       if (key === 'asset_key') {
@@ -1668,7 +1675,16 @@ function bindEvents() {
     scheduleSave();
   });
 
-  document.querySelector('[data-payoff-balance]')?.addEventListener('change', () => {
+  document.querySelector('[data-payoff-balance]')?.addEventListener('change', (event) => {
+    const selectedAsset = state.allocations.find((item) => item.asset_key === state.payoffScenario.asset_key)
+      || state.allocations.find((item) => ['real_estate_home', 'real_estate_rental'].includes(item.asset_key));
+
+    if (selectedAsset) {
+      selectedAsset.owed_debt = numericDisplayValue(event.target.value);
+      persistLocal();
+      scheduleSave();
+    }
+
     render();
   });
 
@@ -1854,7 +1870,7 @@ function loadLocal() {
     state.budget = { ...state.budget, ...parsed.budget };
     state.cashflowInputs = normalizeCashflowInputs(parsed.cashflowInputs || cashflowInputsFromBudget(state.budget));
     state.debtItems = normalizeDebtItems(parsed.debtItems, state.budget);
-    state.payoffScenario = { ...state.payoffScenario, ...parsed.payoffScenario };
+    state.payoffScenario = normalizePayoffScenario(parsed.payoffScenario);
     state.allocations = state.allocations.map((item) => ({
       ...item,
       ...(parsed.allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
