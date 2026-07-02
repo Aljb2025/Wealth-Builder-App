@@ -1913,11 +1913,14 @@ function applyProfile(profile, { forceRemote = false } = {}) {
     ...(profile.asset_allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
   }));
 
-  const profileFocusAssetKeys = state.allocations
-    .filter((item) => item.focus_rank)
-    .sort((a, b) => a.focus_rank - b.focus_rank)
-    .map((item) => item.asset_key);
-  state.visibleAssetKeys = hasSavedLocalPlan ? localVisibleAssetKeys : profileFocusAssetKeys;
+  const hasRemoteVisibleAssetKeys = Array.isArray(profile.visible_asset_keys);
+  const profileVisibleAssetKeys = hasRemoteVisibleAssetKeys
+    ? profile.visible_asset_keys
+    : state.allocations
+      .filter((item) => item.focus_rank)
+      .sort((a, b) => a.focus_rank - b.focus_rank)
+      .map((item) => item.asset_key);
+  state.visibleAssetKeys = hasSavedLocalPlan ? localVisibleAssetKeys : profileVisibleAssetKeys;
   syncVisibleAssets();
   state.status = state.authUser ? 'Synced to account' : 'Synced with Supabase';
 }
@@ -1990,48 +1993,47 @@ async function savePlan() {
   const payload = {
     session_id: sessionId,
     user_id: state.authUser?.id || null,
+    visible_asset_keys: state.visibleAssetKeys,
     ...state.budget,
     updated_at: new Date().toISOString()
   };
 
-  let profile;
-  let error;
-
-  if (state.authUser) {
+  const writeProfile = async (profilePayload) => {
     const existingResult = await supabase
       .from('wealth_profiles')
       .select('id')
-      .eq('user_id', state.authUser.id)
+      .eq(state.authUser ? 'user_id' : 'session_id', state.authUser?.id || sessionId)
       .maybeSingle();
 
     if (existingResult.error) {
-      error = existingResult.error;
-    } else if (existingResult.data) {
-      const updateResult = await supabase
+      return { profile: null, error: existingResult.error };
+    }
+
+    if (existingResult.data) {
+      const { data, error: updateError } = await supabase
         .from('wealth_profiles')
-        .update(payload)
+        .update(profilePayload)
         .eq('id', existingResult.data.id)
         .select('id')
         .single();
-      profile = updateResult.data;
-      error = updateResult.error;
-    } else {
-      const insertResult = await supabase
-        .from('wealth_profiles')
-        .insert(payload)
-        .select('id')
-        .single();
-      profile = insertResult.data;
-      error = insertResult.error;
+      return { profile: data, error: updateError };
     }
-  } else {
-    const upsertResult = await supabase
+
+    const { data, error: insertError } = await supabase
       .from('wealth_profiles')
-      .upsert(payload, { onConflict: 'session_id' })
+      .insert(profilePayload)
       .select('id')
       .single();
-    profile = upsertResult.data;
-    error = upsertResult.error;
+
+    return { profile: data, error: insertError };
+  };
+
+  let { profile, error } = await writeProfile(payload);
+
+  if (error && String(error.message || '').includes('visible_asset_keys')) {
+    const { visible_asset_keys: _visibleAssetKeys, ...fallbackPayload } = payload;
+    ({ profile, error } = await writeProfile(fallbackPayload));
+    if (!error) state.status = 'Supabase needs visible assets column';
   }
 
   if (error) {
