@@ -1302,10 +1302,6 @@ function authOverlay() {
   return `
     <div class="quick-entry-layer auth-entry-layer" data-action="close-auth">
       <section class="quick-entry-panel auth-panel">
-        <div class="auth-primary-actions">
-          <button class="cashflow-add-btn" type="button" data-action="sign-in">Sign In</button>
-          <button class="cashflow-add-btn secondary-auth-action" type="button" data-action="sign-up">Create Account</button>
-        </div>
         <p class="auth-note">Create an account or sign in to save this plan across devices. You can still use the app without logging in.</p>
         <label>
           <span>Email</span>
@@ -1316,8 +1312,12 @@ function authOverlay() {
           <input data-auth-password type="password" autocomplete="current-password" placeholder="Password">
         </label>
         ${state.authMessage ? `<p class="auth-message">${state.authMessage}</p>` : ''}
-        <div class="auth-secondary-actions">
+        <div class="auth-footer-actions">
           <button class="auth-close-action" type="button" data-action="close-auth">Close</button>
+          <div class="auth-primary-actions">
+            <button class="cashflow-add-btn" type="button" data-action="sign-in">Sign In</button>
+            <button class="cashflow-add-btn secondary-auth-action" type="button" data-action="sign-up">Create Account</button>
+          </div>
         </div>
       </section>
     </div>

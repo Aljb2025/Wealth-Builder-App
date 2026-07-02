@@ -623,20 +623,27 @@ small {
 }
 
 .auth-primary-actions,
-.auth-secondary-actions {
+.auth-secondary-actions,
+.auth-footer-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
 .auth-primary-actions {
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
 .auth-secondary-actions {
   justify-content: flex-end;
   margin-top: 2px;
+}
+
+.auth-footer-actions {
+  justify-content: space-between;
+  gap: 28px;
+  margin-top: 12px;
 }
 
 .auth-close-action {
@@ -1744,6 +1751,20 @@ html[data-theme="dark"] .auth-message {
     top: 0;
     right: 0;
     left: 0;
+  }
+
+  .auth-footer-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    gap: 14px;
+  }
+
+  .auth-primary-actions {
+    justify-content: stretch;
+  }
+
+  .auth-primary-actions button {
+    flex: 1 1 0;
   }
 
   .quick-entry-layer {
