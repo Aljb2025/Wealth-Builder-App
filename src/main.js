@@ -132,6 +132,7 @@ let quickEntry = null;
 let assetEntry = null;
 let debtEntry = null;
 let authEntryOpen = false;
+let authSubmitInProgress = false;
 let mobileNavOpen = false;
 let mobileLogoHidden = false;
 const storedThemeMode = localStorage.getItem('wealth-builder-theme');
@@ -1747,6 +1748,7 @@ async function handleAuthSubmit(mode) {
   }
 
   state.authMessage = mode === 'sign-in' ? 'Signing in...' : 'Creating account...';
+  authSubmitInProgress = true;
   render();
 
   const result = mode === 'sign-in'
@@ -1754,6 +1756,7 @@ async function handleAuthSubmit(mode) {
     : await supabase.auth.signUp({ email, password });
 
   if (result.error) {
+    authSubmitInProgress = false;
     state.authMessage = result.error.message === 'Invalid login credentials'
       ? 'Invalid login. Create an account first, confirm your email if required, then sign in.'
       : result.error.message;
@@ -1764,6 +1767,7 @@ async function handleAuthSubmit(mode) {
   state.authUser = result.data.session?.user || null;
 
   if (!state.authUser) {
+    authSubmitInProgress = false;
     state.authMessage = 'Check your email to confirm your account, then sign in.';
     state.status = 'Email confirmation needed';
     authEntryOpen = true;
@@ -1775,8 +1779,8 @@ async function handleAuthSubmit(mode) {
   state.authMessage = '';
   state.status = 'Signed in';
 
-  const loadedProfile = await loadSupabaseData({ forceRemote: true, includeNews: false });
-  if (!loadedProfile) await savePlan();
+  await savePlan();
+  authSubmitInProgress = false;
 
   render();
 }
@@ -2171,7 +2175,9 @@ async function initializeAuth() {
     const nextUser = session?.user || null;
     const changed = nextUser?.id !== state.authUser?.id;
     state.authUser = nextUser;
-    if (changed && nextUser) await loadSupabaseData({ forceRemote: true, includeNews: false });
+    if (changed && nextUser && !authSubmitInProgress) {
+      await loadSupabaseData({ forceRemote: true, includeNews: false });
+    }
     render();
   });
 }
