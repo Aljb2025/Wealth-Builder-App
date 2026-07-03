@@ -14,8 +14,8 @@
   --hero-blue: #1565C0;
   --steel-soft: #dceefa;
   --mint: #4CAF50;
-  --cta-green: #43a047;
-  --cta-green-hover: #388e3c;
+  --cta-green: #3d9344;
+  --cta-green-hover: #43a047;
   --amber: #FFC107;
   --coral: #F53935;
   --orange: #FB8C00;
@@ -34,8 +34,8 @@ html[data-theme="dark"] {
   --hero-blue: #0b3552;
   --steel-soft: #123a56;
   --mint: #61ff7a;
-  --cta-green: #45e85f;
-  --cta-green-hover: #61ff7a;
+  --cta-green: #39cf51;
+  --cta-green-hover: #45e85f;
   --amber: #ffe05c;
   --coral: #ff5a57;
   --orange: #ffad33;
@@ -181,7 +181,7 @@ nav a:hover {
   flex: 0 1 auto;
   padding: 0 12px;
   border-radius: 8px;
-  background: var(--mint);
+  background: var(--cta-green);
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -192,7 +192,7 @@ nav a:hover {
 
 .account-button:hover,
 .account-button:focus-visible {
-  background: #43a047;
+  background: var(--cta-green-hover);
   outline: none;
 }
 
