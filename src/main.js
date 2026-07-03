@@ -1404,7 +1404,11 @@ function bindEvents() {
       const { name, value, type } = event.target;
       state.budget[name] = value;
       persistLocal();
-      scheduleSave();
+      if (name === 'monthly_contribution') {
+        saveNow();
+      } else {
+        scheduleSave();
+      }
     });
     input.addEventListener('change', async () => {
       await saveNow();
