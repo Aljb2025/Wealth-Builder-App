@@ -1480,7 +1480,7 @@ function bindEvents() {
     });
   });
 
-  document.querySelector('[data-action="save-debt-entry"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="save-debt-entry"]')?.addEventListener('click', async () => {
     if (!debtEntry) return;
 
     const type = document.querySelector('[data-debt-entry-field="type"]')?.value || 'other';
@@ -1504,18 +1504,18 @@ function bindEvents() {
     debtEntry = null;
     updateBudgetFromDebtItems();
     persistLocal();
-    scheduleSave();
+    await savePlan();
     render();
   });
 
-  document.querySelector('[data-action="remove-debt-entry"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="remove-debt-entry"]')?.addEventListener('click', async () => {
     if (!debtEntry?.key) return;
 
     state.debtItems = state.debtItems.filter((item) => item.key !== debtEntry.key);
     debtEntry = null;
     updateBudgetFromDebtItems();
     persistLocal();
-    scheduleSave();
+    await savePlan();
     render();
   });
 
@@ -1651,11 +1651,11 @@ function bindEvents() {
       scheduleSave();
     });
 
-    field.addEventListener('change', (event) => {
+    field.addEventListener('change', async (event) => {
       const key = event.target.dataset.payoffField;
       state.payoffScenario[key] = key === 'asset_key' ? event.target.value : numericDisplayValue(event.target.value);
       persistLocal();
-      scheduleSave();
+      await savePlan();
       if (key === 'asset_key') {
         render();
       } else {
@@ -1676,14 +1676,14 @@ function bindEvents() {
     scheduleSave();
   });
 
-  document.querySelector('[data-payoff-balance]')?.addEventListener('change', (event) => {
+  document.querySelector('[data-payoff-balance]')?.addEventListener('change', async (event) => {
     const selectedAsset = state.allocations.find((item) => item.asset_key === state.payoffScenario.asset_key)
       || state.allocations.find((item) => ['real_estate_home', 'real_estate_rental'].includes(item.asset_key));
 
     if (selectedAsset) {
       selectedAsset.owed_debt = numericDisplayValue(event.target.value);
       persistLocal();
-      scheduleSave();
+      await savePlan();
     }
 
     render();
@@ -1779,7 +1779,8 @@ async function handleAuthSubmit(mode) {
   state.authMessage = '';
   state.status = 'Signed in';
 
-  await savePlan();
+  const loadedProfile = await loadSupabaseData({ forceRemote: true, includeNews: false });
+  if (!loadedProfile) await savePlan();
   authSubmitInProgress = false;
 
   render();
@@ -1788,6 +1789,7 @@ async function handleAuthSubmit(mode) {
 async function signOut() {
   if (!supabase) return;
 
+  if (state.authUser) await savePlan();
   await supabase.auth.signOut();
   state.authUser = null;
   authEntryOpen = false;
@@ -1910,6 +1912,24 @@ function applyProfile(profile, { forceRemote = false } = {}) {
     state.debtItems = profile.debt_items?.length
       ? normalizeDebtItems(profile.debt_items, state.budget)
       : normalizeDebtItems(null, state.budget);
+
+    const hasRemotePayoffScenario = [
+      profile.payoff_asset_key,
+      profile.payoff_interest_rate,
+      profile.payoff_regular_payment,
+      profile.payoff_extra_monthly,
+      profile.payoff_extra_annual
+    ].some((value) => value !== undefined && value !== null);
+
+    if (hasRemotePayoffScenario) {
+      state.payoffScenario = normalizePayoffScenario({
+        asset_key: profile.payoff_asset_key,
+        interest_rate: profile.payoff_interest_rate,
+        regular_payment: profile.payoff_regular_payment,
+        extra_monthly: profile.payoff_extra_monthly,
+        extra_annual: profile.payoff_extra_annual
+      });
+    }
   }
 
   state.allocations = state.allocations.map((item) => ({
@@ -1998,6 +2018,11 @@ async function savePlan() {
     session_id: sessionId,
     user_id: state.authUser?.id || null,
     visible_asset_keys: state.visibleAssetKeys,
+    payoff_asset_key: state.payoffScenario.asset_key,
+    payoff_interest_rate: numberValue(state.payoffScenario.interest_rate),
+    payoff_regular_payment: numberValue(state.payoffScenario.regular_payment),
+    payoff_extra_monthly: numberValue(state.payoffScenario.extra_monthly),
+    payoff_extra_annual: numberValue(state.payoffScenario.extra_annual),
     ...state.budget,
     updated_at: new Date().toISOString()
   };
@@ -2034,10 +2059,18 @@ async function savePlan() {
 
   let { profile, error } = await writeProfile(payload);
 
-  if (error && String(error.message || '').includes('visible_asset_keys')) {
-    const { visible_asset_keys: _visibleAssetKeys, ...fallbackPayload } = payload;
+  if (error && ['visible_asset_keys', 'payoff_'].some((key) => String(error.message || '').includes(key))) {
+    const {
+      visible_asset_keys: _visibleAssetKeys,
+      payoff_asset_key: _payoffAssetKey,
+      payoff_interest_rate: _payoffInterestRate,
+      payoff_regular_payment: _payoffRegularPayment,
+      payoff_extra_monthly: _payoffExtraMonthly,
+      payoff_extra_annual: _payoffExtraAnnual,
+      ...fallbackPayload
+    } = payload;
     ({ profile, error } = await writeProfile(fallbackPayload));
-    if (!error) state.status = 'Supabase needs visible assets column';
+    if (!error) state.status = 'Supabase needs latest schema';
   }
 
   if (error) {
