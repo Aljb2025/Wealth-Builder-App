@@ -1385,9 +1385,13 @@ function bindEvents() {
         const section = document.querySelector(target);
         if (!section) return;
 
-        const isMobile = window.matchMedia('(max-width: 720px)').matches;
         const styles = getComputedStyle(document.documentElement);
-        const navHeight = isMobile ? 0 : Number.parseFloat(styles.getPropertyValue('--nav-height')) || 0;
+        const isMobile = window.matchMedia('(max-width: 720px)').matches;
+        const navHeight = isMobile
+          ? 0
+          : document.querySelector('.sidebar')?.getBoundingClientRect().height
+            || Number.parseFloat(styles.getPropertyValue('--nav-height'))
+            || 0;
         const anchorGap = isMobile ? 2 : Number.parseFloat(styles.getPropertyValue('--anchor-gap')) || 0;
         const top = section.getBoundingClientRect().top + window.scrollY - navHeight - anchorGap;
         window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
