@@ -1867,6 +1867,7 @@ function isEditingFormInput() {
 }
 
 function persistLocal() {
+  state.localUpdatedAt = new Date().toISOString();
   localStorage.setItem('wealthbuilder-plan', JSON.stringify({
     budget: state.budget,
     allocations: state.allocations,
@@ -1874,16 +1875,34 @@ function persistLocal() {
     debtItems: state.debtItems,
     payoffScenario: state.payoffScenario,
     profileId: state.profileId,
-    visibleAssetKeys: state.visibleAssetKeys
+    visibleAssetKeys: state.visibleAssetKeys,
+    updatedAt: state.localUpdatedAt
   }));
 }
 
-function loadLocal() {
+function readLocalPlan() {
   const saved = localStorage.getItem('wealthbuilder-plan');
-  if (!saved) return;
+  if (!saved) return null;
 
   try {
-    const parsed = JSON.parse(saved);
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+}
+
+function localPlanIsNewerThanProfile(profile) {
+  const parsed = readLocalPlan();
+  const localTime = Date.parse(parsed?.updatedAt || '');
+  const remoteTime = Date.parse(profile?.updated_at || '');
+  return Number.isFinite(localTime) && (!Number.isFinite(remoteTime) || localTime > remoteTime + 1000);
+}
+
+function loadLocal() {
+  const parsed = readLocalPlan();
+  if (!parsed) return;
+
+  try {
     state.budget = { ...state.budget, ...parsed.budget };
     state.cashflowInputs = normalizeCashflowInputs(parsed.cashflowInputs || cashflowInputsFromBudget(state.budget));
     state.debtItems = normalizeDebtItems(parsed.debtItems, state.budget);
@@ -1893,6 +1912,7 @@ function loadLocal() {
       ...(parsed.allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
     }));
     state.profileId = parsed.profileId || null;
+    state.localUpdatedAt = parsed.updatedAt || null;
     state.visibleAssetKeys = Array.isArray(parsed.visibleAssetKeys)
       ? parsed.visibleAssetKeys
       : state.allocations.filter((item) => item.focus_rank).sort((a, b) => a.focus_rank - b.focus_rank).map((item) => item.asset_key);
@@ -1983,7 +2003,13 @@ async function loadSupabaseData(options = {}) {
   }
 
   if (profile) {
-    applyProfile(profile, options);
+    if (state.authUser && !options.forceRemote && localPlanIsNewerThanProfile(profile)) {
+      state.profileId = profile.id;
+      state.status = 'Saving latest local changes';
+      await savePlan();
+    } else {
+      applyProfile(profile, state.authUser ? { ...options, forceRemote: true } : options);
+    }
   }
 
   if (options.includeNews !== false) {
@@ -2213,7 +2239,7 @@ async function initializeAuth() {
 
   const { data } = await supabase.auth.getUser();
   state.authUser = data.user || null;
-  await loadSupabaseData({ forceRemote: Boolean(state.authUser) });
+  await loadSupabaseData({ forceRemote: false });
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     const nextUser = session?.user || null;
