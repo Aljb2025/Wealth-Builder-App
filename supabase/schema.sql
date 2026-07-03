@@ -16,6 +16,12 @@ create table if not exists public.wealth_profiles (
   monthly_contribution numeric(12, 2) not null default 0,
   risk_profile text not null default 'balanced' check (risk_profile in ('conservative', 'balanced', 'growth')),
   timeline_years integer not null default 10 check (timeline_years >= 1 and timeline_years <= 60),
+  visible_asset_keys text[] default null,
+  payoff_asset_key text not null default 'real_estate_home',
+  payoff_interest_rate numeric(5, 2) not null default 6.5,
+  payoff_regular_payment numeric(12, 2) not null default 1200,
+  payoff_extra_monthly numeric(12, 2) not null default 0,
+  payoff_extra_annual numeric(12, 2) not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -94,6 +100,14 @@ create index if not exists idx_expense_items_profile_id on public.expense_items(
 create index if not exists idx_news_items_published_at on public.news_items(published_at desc);
 create unique index if not exists idx_news_items_url on public.news_items(url);
 alter table public.wealth_profiles add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.wealth_profiles add column if not exists visible_asset_keys text[] default null;
+alter table public.wealth_profiles alter column visible_asset_keys drop not null;
+alter table public.wealth_profiles alter column visible_asset_keys drop default;
+alter table public.wealth_profiles add column if not exists payoff_asset_key text not null default 'real_estate_home';
+alter table public.wealth_profiles add column if not exists payoff_interest_rate numeric(5, 2) not null default 6.5;
+alter table public.wealth_profiles add column if not exists payoff_regular_payment numeric(12, 2) not null default 1200;
+alter table public.wealth_profiles add column if not exists payoff_extra_monthly numeric(12, 2) not null default 0;
+alter table public.wealth_profiles add column if not exists payoff_extra_annual numeric(12, 2) not null default 0;
 create unique index if not exists idx_wealth_profiles_user_id on public.wealth_profiles(user_id) where user_id is not null;
 create index if not exists idx_wealth_profiles_session_id on public.wealth_profiles(session_id);
 
