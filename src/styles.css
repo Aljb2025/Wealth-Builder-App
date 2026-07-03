@@ -14,6 +14,8 @@
   --hero-blue: #1565C0;
   --steel-soft: #dceefa;
   --mint: #4CAF50;
+  --cta-green: #43a047;
+  --cta-green-hover: #388e3c;
   --amber: #FFC107;
   --coral: #F53935;
   --orange: #FB8C00;
@@ -32,6 +34,8 @@ html[data-theme="dark"] {
   --hero-blue: #0b3552;
   --steel-soft: #123a56;
   --mint: #61ff7a;
+  --cta-green: #45e85f;
+  --cta-green-hover: #61ff7a;
   --amber: #ffe05c;
   --coral: #ff5a57;
   --orange: #ffad33;
@@ -476,10 +480,18 @@ small {
   padding: 0 18px;
   border: 0;
   border-radius: 8px;
-  background: var(--mint);
+  background: var(--cta-green);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cashflow-add-btn:hover,
+.cashflow-add-btn:focus-visible {
+  outline: none;
+  background: var(--cta-green-hover);
+  transform: translateY(-1px);
 }
 
 .cashflow-list {
