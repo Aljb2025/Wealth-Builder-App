@@ -1401,7 +1401,10 @@ function bindEvents() {
       persistLocal();
       scheduleSave();
     });
-    input.addEventListener('change', render);
+    input.addEventListener('change', async () => {
+      await saveNow();
+      render();
+    });
   });
 
   document.querySelectorAll('[data-action="open-quick-entry"]').forEach((button) => {
@@ -1426,7 +1429,7 @@ function bindEvents() {
     });
   });
 
-  document.querySelector('[data-action="save-quick-entry"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="save-quick-entry"]')?.addEventListener('click', async () => {
     if (!quickEntry) return;
 
     const label = document.querySelector('[data-quick-name]')?.value?.trim() || 'Unnamed item';
@@ -1446,18 +1449,18 @@ function bindEvents() {
     quickEntry = null;
     updateBudgetFromCashflowInputs();
     persistLocal();
-    scheduleSave();
+    await saveNow();
     render();
   });
 
-  document.querySelector('[data-action="remove-quick-entry"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="remove-quick-entry"]')?.addEventListener('click', async () => {
     if (!quickEntry?.key) return;
 
     state.cashflowInputs[quickEntry.sourceType] = state.cashflowInputs[quickEntry.sourceType].filter((item) => item.key !== quickEntry.key);
     quickEntry = null;
     updateBudgetFromCashflowInputs();
     persistLocal();
-    scheduleSave();
+    await saveNow();
     render();
   });
 
@@ -1504,7 +1507,7 @@ function bindEvents() {
     debtEntry = null;
     updateBudgetFromDebtItems();
     persistLocal();
-    await savePlan();
+    await saveNow();
     render();
   });
 
@@ -1515,7 +1518,7 @@ function bindEvents() {
     debtEntry = null;
     updateBudgetFromDebtItems();
     persistLocal();
-    await savePlan();
+    await saveNow();
     render();
   });
 
@@ -1563,7 +1566,7 @@ function bindEvents() {
     syncVisibleAssets();
     assetEntry = null;
     persistLocal();
-    await savePlan();
+    await saveNow();
     render();
   });
 
@@ -1583,12 +1586,12 @@ function bindEvents() {
     syncVisibleAssets();
     assetEntry = null;
     persistLocal();
-    await savePlan();
+    await saveNow();
     render();
   });
 
   document.querySelectorAll('[data-focus-slot]').forEach((select) => {
-    select.addEventListener('change', (event) => {
+    select.addEventListener('change', async (event) => {
       const rank = Number(event.target.dataset.focusSlot);
       const selectedKey = event.target.value;
       const previousKey = state.visibleAssetKeys[rank - 1];
@@ -1606,7 +1609,7 @@ function bindEvents() {
         state.visibleAssetKeys = state.visibleAssetKeys.filter((_, index) => index !== rank - 1);
         syncVisibleAssets();
         persistLocal();
-        scheduleSave();
+        await saveNow();
         render();
         return;
       }
@@ -1626,19 +1629,19 @@ function bindEvents() {
       state.visibleAssetKeys[rank - 1] = selectedKey;
       syncVisibleAssets();
       persistLocal();
-      scheduleSave();
+      await saveNow();
       render();
     });
   });
 
-  document.querySelector('[data-action="add-asset"]')?.addEventListener('click', () => {
+  document.querySelector('[data-action="add-asset"]')?.addEventListener('click', async () => {
     const unusedAsset = state.allocations.find((item) => !state.visibleAssetKeys.includes(item.asset_key));
     if (!unusedAsset) return;
 
     state.visibleAssetKeys.push(unusedAsset.asset_key);
     syncVisibleAssets();
     persistLocal();
-    scheduleSave();
+    await saveNow();
     render();
   });
 
@@ -1655,7 +1658,7 @@ function bindEvents() {
       const key = event.target.dataset.payoffField;
       state.payoffScenario[key] = key === 'asset_key' ? event.target.value : numericDisplayValue(event.target.value);
       persistLocal();
-      await savePlan();
+      await saveNow();
       if (key === 'asset_key') {
         render();
       } else {
@@ -1683,7 +1686,7 @@ function bindEvents() {
     if (selectedAsset) {
       selectedAsset.owed_debt = numericDisplayValue(event.target.value);
       persistLocal();
-      await savePlan();
+      await saveNow();
     }
 
     render();
@@ -1710,7 +1713,10 @@ function bindEvents() {
       persistLocal();
       scheduleSave();
     });
-    input.addEventListener('change', render);
+    input.addEventListener('change', async () => {
+      await saveNow();
+      render();
+    });
   });
 
   document.querySelectorAll('input[type="number"]:not([readonly])').forEach((input) => {
@@ -1780,7 +1786,7 @@ async function handleAuthSubmit(mode) {
   state.status = 'Signed in';
 
   const loadedProfile = await loadSupabaseData({ forceRemote: true, includeNews: false });
-  if (!loadedProfile) await savePlan();
+  if (!loadedProfile) await saveNow();
   authSubmitInProgress = false;
 
   render();
@@ -1789,7 +1795,7 @@ async function handleAuthSubmit(mode) {
 async function signOut() {
   if (!supabase) return;
 
-  if (state.authUser) await savePlan();
+  if (state.authUser) await saveNow();
   await supabase.auth.signOut();
   state.authUser = null;
   authEntryOpen = false;
@@ -1837,7 +1843,12 @@ function handleDarkNumberStepper(event) {
 
 function scheduleSave() {
   window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(savePlan, 700);
+  saveTimer = window.setTimeout(savePlan, 300);
+}
+
+async function saveNow() {
+  window.clearTimeout(saveTimer);
+  await savePlan();
 }
 
 function syncVisibleAssets() {
