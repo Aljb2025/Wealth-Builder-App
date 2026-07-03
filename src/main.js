@@ -120,6 +120,7 @@ const state = {
   saving: false,
   authUser: null,
   authMessage: '',
+  localUserId: null,
   visibleAssetKeys: defaultAllocations
     .filter((item) => item.focus_rank)
     .sort((a, b) => a.focus_rank - b.focus_rank)
@@ -1785,7 +1786,10 @@ async function handleAuthSubmit(mode) {
   state.authMessage = '';
   state.status = 'Signed in';
 
-  const loadedProfile = await loadSupabaseData({ forceRemote: true, includeNews: false });
+  const loadedProfile = await loadSupabaseData({
+    forceRemote: !localPlanBelongsToUser(state.authUser.id),
+    includeNews: false
+  });
   if (!loadedProfile) await saveNow();
   authSubmitInProgress = false;
 
@@ -1868,6 +1872,7 @@ function isEditingFormInput() {
 
 function persistLocal() {
   state.localUpdatedAt = new Date().toISOString();
+  state.localUserId = state.authUser?.id || null;
   localStorage.setItem('wealthbuilder-plan', JSON.stringify({
     budget: state.budget,
     allocations: state.allocations,
@@ -1875,6 +1880,7 @@ function persistLocal() {
     debtItems: state.debtItems,
     payoffScenario: state.payoffScenario,
     profileId: state.profileId,
+    userId: state.localUserId,
     visibleAssetKeys: state.visibleAssetKeys,
     updatedAt: state.localUpdatedAt
   }));
@@ -1898,6 +1904,11 @@ function localPlanIsNewerThanProfile(profile) {
   return Number.isFinite(localTime) && (!Number.isFinite(remoteTime) || localTime > remoteTime + 1000);
 }
 
+function localPlanBelongsToUser(userId) {
+  const parsed = readLocalPlan();
+  return Boolean(userId && parsed?.userId === userId);
+}
+
 function loadLocal() {
   const parsed = readLocalPlan();
   if (!parsed) return;
@@ -1912,6 +1923,7 @@ function loadLocal() {
       ...(parsed.allocations || []).find((savedItem) => savedItem.asset_key === item.asset_key)
     }));
     state.profileId = parsed.profileId || null;
+    state.localUserId = parsed.userId || null;
     state.localUpdatedAt = parsed.updatedAt || null;
     state.visibleAssetKeys = Array.isArray(parsed.visibleAssetKeys)
       ? parsed.visibleAssetKeys
@@ -2003,7 +2015,9 @@ async function loadSupabaseData(options = {}) {
   }
 
   if (profile) {
-    if (state.authUser && !options.forceRemote && localPlanIsNewerThanProfile(profile)) {
+    const sameUserLocalDraft = state.authUser && localPlanBelongsToUser(state.authUser.id);
+
+    if (state.authUser && sameUserLocalDraft && !options.forceRemote && localPlanIsNewerThanProfile(profile)) {
       state.profileId = profile.id;
       state.status = 'Saving latest local changes';
       await savePlan();
@@ -2246,7 +2260,10 @@ async function initializeAuth() {
     const changed = nextUser?.id !== state.authUser?.id;
     state.authUser = nextUser;
     if (changed && nextUser && !authSubmitInProgress) {
-      await loadSupabaseData({ forceRemote: true, includeNews: false });
+      await loadSupabaseData({
+        forceRemote: !localPlanBelongsToUser(nextUser.id),
+        includeNews: false
+      });
     }
     render();
   });
